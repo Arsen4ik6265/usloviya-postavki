@@ -1179,3 +1179,29 @@ body.scope-domestic .fx-line,body.scope-domestic #fx-status,body.scope-domestic 
   .mode-winner-metric b{font-size:13px}
 }
 @media(max-width:350px){.road-expenses-grid{grid-template-columns:1fr}.road-expenses-grid .field>span{min-height:0}}
+
+/* V11.0 — сроки автомобильной доставки и ввод альтернатив */
+.eta-panel{border:1px solid #d7e4e4;background:#f9fbfa;border-radius:9px;padding:16px;margin:17px 0 20px;min-width:0}
+.eta-heading{display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;margin-bottom:10px}
+.eta-heading h3{font-size:17px;margin:0;color:#163448}
+.eta-kind{font-size:11px;font-weight:700;background:#e6f2ef;border-radius:5px;padding:5px 8px;color:#306c64}
+.eta-explain,.eta-legal,.eta-note{font-size:12px;line-height:1.65;color:#627585;margin:8px 0 12px}
+.eta-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.eta-grid .field{min-width:0;font-size:12px;display:flex;flex-direction:column;gap:7px}
+.eta-grid .field span{min-height:34px;line-height:1.4}
+.eta-grid .input{width:100%;margin-top:auto;min-height:43px;font-size:16px}
+.eta-grid .eta-wide{grid-column:1/-1}
+.eta-grid .eta-wide span{min-height:0}
+.eta-result{margin-top:13px}
+.eta-value{font-size:24px;font-weight:770;color:#126e65;line-height:1.22;margin:2px 0 11px}
+.eta-result dl{display:grid;gap:7px;margin:0}
+.eta-result dl>div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:1px solid #e7eeee;padding-bottom:5px}
+.eta-result dt{font-size:12px;color:#657584}
+.eta-result dd{font-size:12px;color:#1d3e4a;font-weight:700;margin:0;text-align:right}
+.eta-manual-note{font-size:11px;color:#6d7d86;line-height:1.5;margin:8px 0 2px}
+.mode-eta-input{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-top:1px solid #e9eff0;color:#3e5b68;font-size:11px;font-weight:650}
+.mode-eta-input input{max-width:180px;width:100%;border:1px solid #c9d9da;border-radius:7px;padding:10px 12px;font-size:16px;min-height:44px;color:#17384a;background:#fff}
+.mode-eta-input small{line-height:1.4;font-size:10px;font-weight:400;color:#6c7f89}
+.mode-compare-notice{padding:12px 14px;margin:10px 0 18px;border:1px solid #d7e4e4;border-radius:8px;background:#f5f9f8;font-size:12px;line-height:1.6;color:#526f70}
+@media(max-width:580px){.eta-panel{padding:13px}.eta-grid{gap:12px 9px}.eta-grid .field span{min-height:48px}}
+@media(max-width:360px){.eta-grid{grid-template-columns:1fr}.eta-grid .field span{min-height:0}}

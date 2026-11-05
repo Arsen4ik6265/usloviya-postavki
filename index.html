@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <meta name="description" content="Условия поставки: сравнение перевозок внутри страны и для ВЭД, учебный расчёт расходов, Incoterms 2020.">
   <title>Условия поставки — логистика по России и ВЭД</title>
-  <link rel="stylesheet" href="./style.css?v=10">
+  <link rel="stylesheet" href="./style.css?v=11">
 </head>
 <body>
 <header>
@@ -120,6 +120,25 @@
           <span class="road-route-status" id="road-route-status" role="status" aria-live="polite">Для известных городов расстояние и время определяются автоматически. Результат можно изменить вручную.</span>
           <a class="road-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">Картографические данные © OpenStreetMap</a>
         </div>
+
+        <section class="eta-panel" id="eta-panel" aria-labelledby="eta-title">
+          <div class="eta-heading">
+            <h3 id="eta-title">Срок доставки</h3>
+            <span class="eta-kind">Оценка, не гарантия</span>
+          </div>
+          <div id="eta-road-options" hidden>
+            <p class="eta-explain">Для одной фуры и одного водителя: время по дорогам, перерывы и отдых, подготовка, погрузка и разгрузка. Значения можно уточнить по условиям рейса.</p>
+            <div class="eta-grid">
+              <label class="field"><span>Средняя скорость грузовика, км/ч</span><input class="input" id="eta-speed" type="number" min="25" max="90" step="5" value="65" inputmode="numeric"></label>
+              <label class="field"><span>Подготовка и подача, ч</span><input class="input" id="eta-prep" type="number" min="0" max="72" step="1" value="4" inputmode="decimal"></label>
+              <label class="field"><span>Погрузка, ч</span><input class="input" id="eta-load" type="number" min="0" max="72" step="1" value="3" inputmode="decimal"></label>
+              <label class="field"><span>Разгрузка, ч</span><input class="input" id="eta-unload" type="number" min="0" max="72" step="1" value="2" inputmode="decimal"></label>
+              <label class="field eta-wide"><span>Дополнительный резерв на задержки, ч</span><input class="input" id="eta-buffer" type="number" min="0" max="168" step="1" value="12" inputmode="decimal"></label>
+            </div>
+            <p class="eta-legal">Внутри России учитываем модель с 9 ч вождения за день, перерывом 45 мин после 4,5 ч и межсменным отдыхом 11 ч. Для международных рейсов нужен отдельный график. <a href="https://www.consultant.ru/document/cons_doc_LAW_534382/ccd9e7b88542d83c4685823cb2399172b14baac6/" target="_blank" rel="noopener noreferrer">Приказ Минтранса № 160</a>.</p>
+          </div>
+          <div class="eta-result" id="eta-result" role="status" aria-live="polite"></div>
+        </section>
         <label class="field"><span id="delivery-goal-label">Условия организации доставки</span>
           <select class="input" id="delivery-goal">
             <option value="buyer">Основную перевозку организует покупатель</option>
@@ -188,6 +207,6 @@
 </main>
 <footer class="foot"><span>Условия поставки · логистика и ВЭД</span><span>Модельные сроки · источники ставок и курса</span></footer>
 <div class="alertbar hidden" id="toast" role="status" aria-live="polite"></div>
-<script src="./app.js?v=10" defer></script>
+<script src="./app.js?v=11" defer></script>
 </body>
 </html>
