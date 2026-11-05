@@ -1205,3 +1205,11 @@ body.scope-domestic .fx-line,body.scope-domestic #fx-status,body.scope-domestic 
 .mode-compare-notice{padding:12px 14px;margin:10px 0 18px;border:1px solid #d7e4e4;border-radius:8px;background:#f5f9f8;font-size:12px;line-height:1.6;color:#526f70}
 @media(max-width:580px){.eta-panel{padding:13px}.eta-grid{gap:12px 9px}.eta-grid .field span{min-height:48px}}
 @media(max-width:360px){.eta-grid{grid-template-columns:1fr}.eta-grid .field span{min-height:0}}
+
+/* V12: источник цены непосредственно рядом с результатом сравнения. */
+.scenario-rate-source {
+    margin: -4px 0 12px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+}

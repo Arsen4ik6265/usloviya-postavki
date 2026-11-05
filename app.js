@@ -636,7 +636,9 @@
         return {drive,breaks,overnight,prep,load,unload,buffer,minHours,maxHours,osrm:!!osrm};
     }
     function etaForScenario(mode,distance){
-        if(mode==='road'){
+        // Domestic road only. International road transport needs its own rules,
+        // border delays and a carrier-confirmed transit time.
+        if(mode==='road' && scopeDomestic()){
             const road=driveRoadTime(distance);
             if(!road || road.longRoute) return {days:null,sourceTime:road?.longRoute?'Нужен график экипажа и недельного отдыха':'Неполные параметры'};
             const days=(road.minHours+road.maxHours)/48;
@@ -650,18 +652,21 @@
     }
     const daysLabel = row => {
         if(!row||!Number.isFinite(row.days)) return 'Срок не указан';
-        if(row.mode==='road'){
+        if(row.mode==='road' && Number.isFinite(row.minHours) && Number.isFinite(row.maxHours)){
             return '≈'+Math.ceil(row.minHours)+'–'+Math.ceil(row.maxHours)+' ч';
         }
         const value=new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(row.days);
         return value+' сут. (ввод)';
     };
     function renderEtaPanel(){
-        const road=state.mode==='road';
+        const road=state.mode==='road' && scopeDomestic();
         $('eta-road-options').hidden=!road;
         const root=$('eta-result');root.replaceChildren();
         if(!road){
-            const note=document.createElement('p');note.className='eta-note';note.textContent='Для этого транспорта нет подтверждённого расписания. Добавьте срок из предложения перевозчика в разделе сравнения ниже. Автоматически считать его по километрам некорректно.';
+            const note=document.createElement('p');note.className='eta-note';
+            note.textContent=!scopeDomestic() && state.mode==='road'
+                ? 'Международный автрейс: время OSRM — только движение по дорогам. Пограничные процедуры и режим труда экипажа зависят от маршрута и страны; модель внутрироссийского рейса здесь не применяем. Укажите срок из предложения перевозчика в блоке сравнения ниже.'
+                : 'Для этого транспорта нет подтверждённого расписания. Добавьте срок из предложения перевозчика в разделе сравнения ниже. Автоматически считать его по километрам некорректно.';
             root.append(note);return;
         }
         const distance=calcNumber('distance');
@@ -690,9 +695,6 @@
         info.textContent=data.osrm?'OSRM — ориентир движения легкового автомобиля; скорость грузовика и остальные этапы рассчитаны отдельно.':'Время движения оценено по введённому расстоянию и скорости грузовика; подтверждённого ответа OSRM для этого значения нет.';
         root.append(info);
         const caveat=document.createElement('p');caveat.className='eta-manual-note';caveat.textContent='Учебная оценка для одного водителя, не договорный срок. Не учитывает точный график складов, погодные ограничения, выходные, специальные разрешения и фактические пробки.';root.append(caveat);
-        if(!scopeDomestic()){
-           const international=document.createElement('p');international.className='eta-manual-note';international.textContent='ВЭД: российский приказ № 160 не распространяется на международные рейсы; расчёт лишь пример без границы и таможенных задержек.';root.append(international);
-        }
     }
     const goalLabel = {buyer:'Перевозку организует покупатель',seller:'Перевозку организует продавец',insured:'Продавец оплачивает перевозку и страхование',door:'Доставка до места назначения'};
     const scopeGoalLabel = goal => scopeDomestic() ? DOMESTIC_GOALS[goal].title : goalLabel[goal];
@@ -706,6 +708,15 @@
         if (isMarine && state.mode==='sea' && handover()==='alongside') return 'FAS';
         if (isMarine && onboard) return 'FOB';
         return 'FCA';
+    }
+    function scenarioRateSource(mode){
+        if(!scopeDomestic()) return 'Учебная ставка, не рыночная котировка';
+        if(mode!=='road') return 'Учебная ставка, не подтверждена перевозчиком';
+        if(mode===state.mode && (manualRate || marketQuoteChoice==='manual'))
+            return 'Ставка введена пользователем, не проверена';
+        const quote=selectedMarketQuote(mode);
+        return quote ? 'Опубликованный ориентир: '+quote.label+' · '+quote.date
+                     : 'Нет рыночной ставки: требуется ставка перевозчика';
     }
     function transportScenarios(){
         const route=currentRoute();
@@ -736,7 +747,7 @@
             const estimate=estimateValues(term,{weight,declaredValue,distance,rate,mode,cargo:$('cargo').value,international});
             if(!estimate)continue;
             const eta=etaForScenario(mode,distance);
-            rows.push({mode,name:MODES[mode],distance,distSource,rate,term,recommendedTerm,total:estimate.total,freight:estimate.main,...eta});
+            rows.push({mode,name:MODES[mode],distance,distSource,rate,term,recommendedTerm,total:estimate.total,freight:estimate.main,rateSource:scenarioRateSource(mode),...eta});
         }
         return rows;
     }
@@ -767,13 +778,13 @@
             root.append(empty);return;
         }
         const summary=document.createElement('p');summary.className='mode-compare-disclaimer';
-        summary.textContent=scenarioRoute ? (scopeDomestic()?'Россия: для тентованных автоперевозок приведены опубликованные ориентиры с датой. Для других видов — учебные тарифы. Сроки отсутствуют без данных перевозчика.':'ВЭД: ставки в USD, курс ЦБ РФ — справочный. Сроки перевозчиков не загружены автоматически.') : 'Для своего маршрута показан только выбранный вид транспорта. Для сравнения нескольких видов выберите маршрут из примеров.';
+        summary.textContent=scenarioRoute ? (scopeDomestic()?'Сравниваются расчётные сценарии, а не реальные предложения перевозчиков. Для тентованной автоперевозки может быть опубликованный ориентир, для других видов — учебные ставки. Без срока из предложения сравнение скорости ограничено.':'ВЭД: стоимость и варианты учебные, курс — лишь пересчёт валют. Для всех видов транспорта сроки должны быть получены от перевозчика; автоматических международных сроков нет.') : 'Для своего маршрута показан только выбранный вид транспорта. Для сравнения нескольких видов выберите маршрут из примеров.';
         root.append(summary);
         if(rows.length>1){
             const winners=transportWinners(rows);
             const panels=document.createElement('div');panels.className='mode-winners';
             [
-                ['Минимальные расходы (модель)',winners.cheapest],
+                ['Минимальная сумма по допущениям',winners.cheapest],
                 ...(winners.fastest?[['Самый быстрый (расчёт / ввод)',winners.fastest]]:[]),
                 ...(winners.balanced?[['Баланс цены и срока (модель)',winners.balanced]]:[])
             ].forEach(([label,item])=>{
@@ -844,8 +855,9 @@
             const converted=fxSub(item.total);if(converted)total.title='Справочно: '+converted;
             const eta=document.createElement('span');eta.textContent=daysLabel(item);
             amounts.append(total,eta);
+            const source=document.createElement('p');source.className='scenario-rate-source';source.textContent=item.rateSource;
             const details=document.createElement('dl');details.className='mode-option-facts';
-            [['Расстояние',distanceNum(item.distance)+' км'],['Основная перевозка',money(item.freight)],...(scopeDomestic()? [['Условия доставки',scopeGoalLabel($('delivery-goal').value)]] : [['Базис в расчёте',item.term],['Рекомендация Incoterms',item.recommendedTerm]]),['Источник расстояния',item.distSource],['Источник ставки',scopeDomestic()&&item.mode==='road'?(marketQuoteSummary()||'Ручной ввод, не проверено'):'Учебный тариф'],['Срок доставки',daysLabel(item)+(item.mode==='road'?' · модель одного водителя':item.days===null?'': ' · ввод пользователя')],['Источник срока',item.sourceTime],...(fxSub(item.total)?[['В другой валюте',fxSub(item.total)]]:[])].forEach(([key,value],i)=>{
+            [['Расстояние',distanceNum(item.distance)+' км'],['Основная перевозка',money(item.freight)],...(scopeDomestic()? [['Условия доставки',scopeGoalLabel($('delivery-goal').value)]] : [['Базис в расчёте',item.term],['Рекомендация Incoterms',item.recommendedTerm]]),['Источник расстояния',item.distSource],['Источник ставки',item.rateSource],['Срок доставки',daysLabel(item)+(item.mode==='road' && scopeDomestic()?' · модель одного водителя':item.days===null?'': ' · ввод пользователя')],['Источник срока',item.sourceTime],...(fxSub(item.total)?[['В другой валюте',fxSub(item.total)]]:[])].forEach(([key,value],i)=>{
                 const wrap=document.createElement('div'),k=document.createElement('dt'),v=document.createElement('dd');
                 k.textContent=key;v.textContent=value;wrap.append(k,v);details.append(wrap);
             });
@@ -858,8 +870,8 @@
                 changeTransport(item.mode);
                 $('estimate-title').scrollIntoView({behavior:'smooth',block:'start'});
             });
-            card.append(top,amounts,details);
-            if(item.mode!=='road'){
+            card.append(top,amounts,source,details);
+            if(item.mode!=='road' || !scopeDomestic()){
                 const entry=document.createElement('label');entry.className='mode-eta-input';
                 const label=document.createElement('span');label.textContent='Срок по предложению перевозчика, суток';
                 const input=document.createElement('input');input.type='number';input.min='0.25';input.max='180';input.step='0.25';input.inputMode='decimal';input.placeholder='Не указан';
@@ -869,7 +881,9 @@
                     const days=Number(input.value.replace(',','.'));
                     if(input.value.trim()!=='' && Number.isFinite(days)&&days>=.25&&days<=180)carrierTimes.set(etaKey(item.mode),days);
                     else carrierTimes.delete(etaKey(item.mode));
-                    renderTransportComparison();renderEtaPanel();
+                    // Avoid rebuilding a parent DOM subtree while its focused input
+                    // dispatches change/blur events (re-entrant replaceChildren).
+                    setTimeout(()=>{renderTransportComparison();renderEtaPanel();},0);
                 });
                 entry.append(label,input,note);card.append(entry);
             }
@@ -877,7 +891,7 @@
         });
         root.append(cards);
         const foot=document.createElement('p');foot.className='mode-compare-disclaimer';
-        foot.textContent='Автомобильный срок — прозрачная оценка для одного водителя с погрузкой, разгрузкой и резервом; OSRM не маршрутизирует грузовики. Сроки других видов транспорта не вычисляются по условной скорости: для сравнения введите предложение перевозчика. Цены альтернатив без проверенного источника остаются учебными. Рейсы, склады, границы и разрешения не проверены.';
+        foot.textContent='Россия: автомобильный срок — модель для одного водителя с обработкой груза и резервом; OSRM не маршрутизирует грузовики. ВЭД: международный автомобильный срок не рассчитывается по внутренним правилам. Для остальных вариантов укажите срок из предложения перевозчика. Цены без проверенных источников остаются учебными. Рейсы, склады, границы и разрешения не проверены.';
         root.append(foot);
     }
 

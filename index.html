@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <meta name="description" content="Условия поставки: сравнение перевозок внутри страны и для ВЭД, учебный расчёт расходов, Incoterms 2020.">
   <title>Условия поставки — логистика по России и ВЭД</title>
-  <link rel="stylesheet" href="./style.css?v=11">
+  <link rel="stylesheet" href="./style.css?v=12">
 </head>
 <body>
 <header>
@@ -127,7 +127,7 @@
             <span class="eta-kind">Оценка, не гарантия</span>
           </div>
           <div id="eta-road-options" hidden>
-            <p class="eta-explain">Для одной фуры и одного водителя: время по дорогам, перерывы и отдых, подготовка, погрузка и разгрузка. Значения можно уточнить по условиям рейса.</p>
+            <p class="eta-explain">Для внутрироссийской фуры с одним водителем: время по дорогам, перерывы и отдых, подготовка, погрузка и разгрузка. Значения можно уточнить по условиям рейса.</p>
             <div class="eta-grid">
               <label class="field"><span>Средняя скорость грузовика, км/ч</span><input class="input" id="eta-speed" type="number" min="25" max="90" step="5" value="65" inputmode="numeric"></label>
               <label class="field"><span>Подготовка и подача, ч</span><input class="input" id="eta-prep" type="number" min="0" max="72" step="1" value="4" inputmode="decimal"></label>
@@ -203,10 +203,10 @@
     <div class="compare-head"><div><h2 id="comparison-title">Сравнение условий</h2><p class="panel-sub" style="margin:6px 0 0">Сравните, кто организует перевозку, оформляет груз и несёт расходы.</p></div><label class="compare-control"><span class="compare-label">Сравнить с</span><select id="compare-term" class="input" aria-label="Второй базис для сравнения" style="min-width:120px"></select></label></div>
     <div class="compare-cards" id="comparison-cards"></div>
   </section>
-  <aside class="note-footer" id="legal-footer"><b>Обратите внимание.</b> Все тарифы, сроки, дополнительные услуги и варианты маршрутов — учебные допущения, не котировка перевозчика. НДС, пошлины, санкционные, разрешительные и специальные сборы не включены. Внутренние поставки и ВЭД имеют разные юридические сценарии. Подробнее: <a href="https://iccwbo.org/business-solutions/incoterms-rules/" target="_blank" rel="noopener noreferrer">ICC — Incoterms®</a>, <a href="https://www.consultant.ru/document/cons_doc_LAW_9027/e93c3cec8d1a1857e94f41c190a0ff38efd98968/" target="_blank" rel="noopener noreferrer">ст. 458 ГК РФ</a>.</aside>
+  <aside class="note-footer" id="legal-footer"><b>Обратите внимание.</b> Опубликованные ориентиры цен не равны предложению на конкретный рейс. Другие цены, сроки и варианты могут быть учебными; смотрите источник рядом с результатом. НДС, пошлины, санкционные, разрешительные и специальные сборы не включены. Внутренние поставки и ВЭД имеют разные юридические сценарии. Подробнее: <a href="https://iccwbo.org/business-solutions/incoterms-rules/" target="_blank" rel="noopener noreferrer">ICC — Incoterms®</a>, <a href="https://www.consultant.ru/document/cons_doc_LAW_9027/e93c3cec8d1a1857e94f41c190a0ff38efd98968/" target="_blank" rel="noopener noreferrer">ст. 458 ГК РФ</a>.</aside>
 </main>
 <footer class="foot"><span>Условия поставки · логистика и ВЭД</span><span>Модельные сроки · источники ставок и курса</span></footer>
 <div class="alertbar hidden" id="toast" role="status" aria-live="polite"></div>
-<script src="./app.js?v=11" defer></script>
+<script src="./app.js?v=12" defer></script>
 </body>
 </html>
