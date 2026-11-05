@@ -1046,3 +1046,14 @@ main {
 @media(max-width:370px){
  .calc-grid .calc-label{min-height:67px}
 }
+
+/* Расчёт автомобильного расстояния — дополнительная опция */
+.route-verification{display:flex;align-items:center;flex-wrap:wrap;gap:9px 14px;margin:-5px 0 18px}
+.route-verification[hidden]{display:none!important}
+.road-route-btn{font-size:13px;line-height:1.3;padding:10px 13px;background:#fff;border:1px solid #0d8075;color:#075d56;border-radius:7px;font-weight:650;max-width:100%}
+.road-route-btn:hover{background:#e9f7f3}
+.road-route-btn:disabled{opacity:.58;cursor:wait}
+.road-route-status{font-size:11px;line-height:1.5;color:#526578;flex:1 1 200px}
+@media(max-width:580px){.route-verification{align-items:stretch}.road-route-btn{width:100%}.road-route-status{flex-basis:100%}}
+
+.road-attribution{font-size:11px;color:#43667a;text-decoration:underline;text-underline-offset:2px;width:100%}

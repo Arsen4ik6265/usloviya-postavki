@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <meta name="description" content="Условия поставки: выбор базиса Incoterms 2020 с учётом вида транспорта и способа передачи груза.">
   <title>Условия поставки — Incoterms 2020</title>
-  <link rel="stylesheet" href="./style.css?v=2">
+  <link rel="stylesheet" href="./style.css?v=5">
 </head>
 <body>
 <header>
@@ -77,6 +77,11 @@
           <label class="field"><span class="calc-label">Стоимость груза, USD</span><input class="input" id="cargo-value" type="number" value="30000" min="0" max="1000000000" step="100" inputmode="decimal"></label>
         </div>
         <p class="distance-hint" id="distance-hint" role="status" aria-live="polite">Ориентир по выбранному маршруту. Значение можно изменить вручную.</p>
+        <div class="route-verification" id="road-route-block" hidden>
+          <button type="button" id="road-route-btn" class="road-route-btn">Пересчитать по автодорогам</button>
+          <span class="road-route-status" id="road-route-status" role="status" aria-live="polite">Для известных городов расстояние и время определяются автоматически. Результат можно изменить вручную.</span>
+          <a class="road-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">Картографические данные © OpenStreetMap</a>
+        </div>
         <label class="field">Какой результат нужен?
           <select class="input" id="delivery-goal">
             <option value="buyer">Основную перевозку организует покупатель</option>
@@ -125,6 +130,6 @@
 </main>
 <footer class="foot"><span>Условия поставки · Incoterms 2020</span><span>Учебная модель расчёта, не тарифное предложение</span></footer>
 <div class="alertbar hidden" id="toast" role="status" aria-live="polite"></div>
-<script src="./app.js?v=2" defer></script>
+<script src="./app.js?v=5" defer></script>
 </body>
 </html>

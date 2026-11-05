@@ -40,7 +40,204 @@
     const usd = n => new Intl.NumberFormat('ru-RU',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
     const routeSelect = $('route-preset');
     let manualDistance = false;
+    let manualDistanceKey = null;
     let manualRate = false;
+    let roadDistance = null;
+    let roadRequestId = 0;
+    let roadRequestLastAt = 0;
+    let roadRequestController = null;
+    let roadAutoTimer = null;
+    const roadCache = new Map();
+
+    // Центры городов. Для построения маршрута используется автомобильная сеть OSM,
+    // поэтому результат не является точным расстоянием от склада до склада.
+    // Формат координат: [широта, долгота].
+    const CITY_COORDS = {
+        'москва': [55.7558,37.6173],
+        'санкт-петербург': [59.9343,30.3351],
+        'санкт петербург': [59.9343,30.3351],
+        'петербург': [59.9343,30.3351],
+        'спб': [59.9343,30.3351],
+        'краснодар': [45.0355,38.9753],
+        'казань': [55.7961,49.1064],
+        'нижний новгород': [56.3269,44.0059],
+        'ростов-на-дону': [47.2357,39.7015],
+        'ростов на дону': [47.2357,39.7015],
+        'воронеж': [51.6608,39.2003],
+        'волгоград': [48.7080,44.5133],
+        'самара': [53.1959,50.1002],
+        'саратов': [51.5336,46.0343],
+        'уфа': [54.7388,55.9721],
+        'екатеринбург': [56.8389,60.6057],
+        'новороссийск': [44.7238,37.7687],
+        'калуга': [54.5138,36.2612],
+        'тверь': [56.8587,35.9176],
+        'тула': [54.1930,37.6176],
+        'владимир': [56.1291,40.4066],
+        'сочи': [43.5855,39.7231],
+        'псков': [57.8194,28.3327]
+    };
+
+    const cityPoint = value => CITY_COORDS[normalizedPlace(value)];
+    const roadKey = () => normalizedPlace($('origin').value) + '|' + normalizedPlace($('destination').value);
+    const durationLabel = seconds => {
+        const minutes = Math.round(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        return hours ? `${hours} ч ${minutes % 60} мин` : `${minutes} мин`;
+    };
+    function cancelRoadRequest() {
+        if (roadAutoTimer !== null) {
+            clearTimeout(roadAutoTimer);
+            roadAutoTimer = null;
+        }
+        ++roadRequestId;
+        if (roadRequestController) roadRequestController.abort();
+        roadRequestController = null;
+        const btn = $('road-route-btn');
+        btn.disabled = false;
+        btn.textContent = 'Пересчитать по автодорогам';
+    }
+    function updateRoadControls() {
+        const block = $('road-route-block');
+        block.hidden = state.mode !== 'road';
+        if (block.hidden) return;
+        const from = cityPoint($('origin').value);
+        const to = cityPoint($('destination').value);
+        const label = $('road-route-status');
+        const key = roadKey();
+        const button = $('road-route-btn');
+        button.disabled = !from || !to || roadRequestController !== null;
+        if (!from || !to) {
+            label.textContent = 'Для этих городов пока нет координат в справочнике. Укажите расстояние вручную.';
+        } else if (key.split('|')[0] === key.split('|')[1]) {
+            button.disabled = true;
+            label.textContent = 'Пункты отправления и назначения совпадают. Выберите другой маршрут.';
+        } else if (roadDistance && roadDistance.key === key) {
+            label.textContent = `OSRM: ${roadDistance.km.toLocaleString('ru-RU')} км · в движении ${durationLabel(roadDistance.seconds)}. Между центрами городов, без остановок и ограничений грузового транспорта.`;
+        } else if (roadRequestController || roadAutoTimer !== null) {
+            label.textContent = 'Получаем расстояние и время по автодорогам…';
+        } else {
+            label.textContent = 'При выборе маршрута расстояние рассчитывается автоматически. Если сервис недоступен, используйте ориентир из справочника или введите расстояние вручную.';
+        }
+    }
+    function invalidateRoadDistance() {
+        roadDistance = null;
+        cancelRoadRequest();
+    }
+    function applyRoadResult(result, key) {
+        if (state.mode !== 'road' || key !== roadKey()) return;
+        $('distance').value = String(result.km);
+        manualDistance = false;
+        manualDistanceKey = null;
+        roadDistance = { ...result, key };
+        updateDistanceHint();
+        updateRoadControls();
+        renderEstimate();
+    }
+    // Автозапрос только при выборе маршрута или завершении ввода города.
+    // Не посылаем запросы на каждую введённую букву.
+    function scheduleRoadLookup() {
+        if (state.mode !== 'road') return;
+        const from = cityPoint($('origin').value);
+        const to = cityPoint($('destination').value);
+        const key = roadKey();
+        if (!from || !to || key.split('|')[0] === key.split('|')[1]) {
+            updateRoadControls();
+            return;
+        }
+        if (roadDistance?.key === key || manualDistance) {
+            updateRoadControls();
+            return;
+        }
+        const cached = roadCache.get(key);
+        if (cached) {
+            applyRoadResult(cached, key);
+            return;
+        }
+        if (roadAutoTimer !== null) clearTimeout(roadAutoTimer);
+        // Чуть больше секунды между обращениями к общему демосерверу OSRM.
+        const delay = Math.max(250, 1300 - (Date.now() - roadRequestLastAt));
+        roadAutoTimer = setTimeout(() => {
+            roadAutoTimer = null;
+            getRoadDistance(false);
+        }, delay);
+        updateRoadControls();
+    }
+    async function getRoadDistance(force = true) {
+        if (state.mode !== 'road') return;
+        const from = cityPoint($('origin').value);
+        const to = cityPoint($('destination').value);
+        const status = $('road-route-status');
+        if (!from || !to) {
+            status.textContent = 'Неизвестный город. Укажите расстояние вручную.';
+            return;
+        }
+        const key = roadKey();
+        if (key.split('|')[0] === key.split('|')[1]) {
+            status.textContent = 'Пункты отправления и назначения совпадают.';
+            return;
+        }
+        if (!force && manualDistance) return; // Ручной ввод всегда имеет приоритет.
+        if (force && roadAutoTimer !== null) {
+            clearTimeout(roadAutoTimer);
+            roadAutoTimer = null;
+        }
+        const wait = 1300 - (Date.now() - roadRequestLastAt);
+        if (wait > 0) {
+            // Повторный запрос тоже соблюдает ограничение частоты.
+            roadAutoTimer = setTimeout(() => {
+                roadAutoTimer = null;
+                getRoadDistance(force);
+            }, wait);
+            updateRoadControls();
+            return;
+        }
+        cancelRoadRequest();
+        const id = ++roadRequestId;
+        const button = $('road-route-btn');
+        button.disabled = true;
+        button.textContent = 'Строим маршрут…';
+        status.textContent = 'Запрашиваем расстояние и время по автодорогам…';
+        const abort = new AbortController();
+        roadRequestController = abort;
+        const timeout = setTimeout(() => abort.abort(), 10000);
+        roadRequestLastAt = Date.now();
+        const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=false&steps=false`;
+        try {
+            const response = await fetch(url, { signal: abort.signal });
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const data = await response.json();
+            if (data.code !== 'Ok') throw new Error(data.code || 'Маршрут не найден');
+            const route = data.routes?.[0];
+            const km = Math.round(route?.distance / 1000);
+            const seconds = Number(route?.duration);
+            if (!Number.isFinite(km) || km <= 0 || km > 50000 || !Number.isFinite(seconds) || seconds <= 0) {
+                throw new Error('Некорректный ответ сервиса');
+            }
+            if (id !== roadRequestId || key !== roadKey() || state.mode !== 'road') return;
+            const result = {km, seconds};
+            roadCache.set(key, result);
+            roadDistance = { ...result, key };
+            $('distance').value = String(km);
+            manualDistance = false;
+            manualDistanceKey = null;
+            updateDistanceHint();
+            renderEstimate();
+        } catch (error) {
+            if (id !== roadRequestId) return;
+            status.textContent = 'OSRM не ответил. Прежний километраж оставлен без изменений (если он задан). Можно ввести его вручную или повторить запрос.';
+            console.warn('Демонстрационный OSRM недоступен:', error);
+        } finally {
+            clearTimeout(timeout);
+            if (id === roadRequestId) {
+                roadRequestController = null;
+                button.disabled = false;
+                button.textContent = 'Пересчитать по автодорогам';
+                if (roadDistance?.key === key) updateRoadControls();
+            }
+        }
+    }
+
     let manuallyChangedTerm = false;
     function calcNumber(id){return Number($(id).value);}
     function hasValidInput(){return [calcNumber('weight'),calcNumber('distance'),calcNumber('tariff')].every(x=>Number.isFinite(x)&&x>0)&&calcNumber('cargo-value')>=0;}
@@ -65,7 +262,9 @@
     function updateDistanceHint(){
         const known=currentRoute();
         const hint=$('distance-hint');
-        if(manualDistance && $('distance').value.trim()){
+        if(roadDistance && roadDistance.key===roadKey()){
+            hint.textContent='Расстояние уточнено через OSRM / OpenStreetMap (между центрами городов). Значение можно изменить вручную.';
+        } else if(manualDistance && $('distance').value.trim()){
             hint.textContent='Расстояние изменено вручную. Оно используется в расчёте; вы можете изменить его ещё раз.';
         } else if(known && known.modes[state.mode]){
             hint.textContent='Ориентировочное расстояние из учебного сценария. Не навигационный расчёт. Значение можно изменить.';
@@ -74,11 +273,13 @@
         }
     }
     function setPresetRoute(){
+        invalidateRoadDistance();
         const r=currentRoute();
         $('international-row').hidden=!!r;
         if (!r) {
             $('distance').value = '';
             manualDistance = true;
+            manualDistanceKey = roadKey();
         }
         if (r){
             $('origin').value=r.from;$('destination').value=r.to;
@@ -86,7 +287,7 @@
                 state.mode=Object.keys(r.modes)[0];
                 renderHandover();
             }
-            manualDistance=false; manualRate=false;
+            manualDistance=false; manualDistanceKey=null; manualRate=false;
             $('distance').value=r.modes[state.mode];
             $('tariff').value=RATES[state.mode].tkm;
             manuallyChangedTerm=false;
@@ -94,10 +295,10 @@
         }
         updateDistanceHint();
         renderAll();
+        scheduleRoadLookup();
     }
     function estimateValues(term){
         const t=TERMS[term], route=currentRoute();
-        if(route && !(state.mode in route.modes))return null;
         if (!hasValidInput())return null;
         const weight=calcNumber('weight'), distance=calcNumber('distance'), rate=calcNumber('tariff'), declaredValue=calcNumber('cargo-value');
         const params=RATES[state.mode];
@@ -126,11 +327,6 @@
         root.replaceChildren();
         const route=currentRoute();
         const rec=recTerm();
-        if(route && !(state.mode in route.modes)){
-            const error=document.createElement('div');error.className='estimate-empty';
-            error.textContent='Для этого демонстрационного маршрута выбранный вид транспорта не предусмотрен. Выберите поддерживаемый вариант или создайте свой маршрут.';
-            root.append(error);return;
-        }
         if(!hasValidInput()){
             const error=document.createElement('div');error.className='estimate-empty';
             error.textContent='Укажите положительные вес, расстояние и тариф. Для своего маршрута расстояние нужно ввести самостоятельно. Стоимость груза не должна быть отрицательной.';
@@ -174,25 +370,36 @@
         root.append(caution);
     }
     function changeTransport(mode){
+        if (state.mode === mode) return;
+        invalidateRoadDistance();
         state.mode=mode;
+        // Километраж относится к конкретному способу перевозки;
+        // не переносим ручное число с моря на автомобильную сеть и наоборот.
+        manualDistance=false;
+        manualDistanceKey=null;
         renderHandover();
         if (state.mode==='sea')$('handover').value=$('cargo').value==='container'?'terminal':'onboard';
-        if(!manualDistance){
-            const r=currentRoute();
-            if(r && r.modes[mode])$('distance').value=r.modes[mode];
-        }
+        const r=currentRoute();
+        $('distance').value = (r && r.modes[mode]) ? r.modes[mode] : '';
         if(!manualRate){$('tariff').value=RATES[mode].tkm;}
         if(!manuallyChangedTerm)state.term=recTerm().code;
         updateDistanceHint();
         renderAll();
+        scheduleRoadLookup();
     }
     routeSelect.addEventListener('change',setPresetRoute);
     ['weight','distance','tariff','cargo-value'].forEach(id=>$(id).addEventListener('input',()=>{
-        if(id==='distance'){manualDistance=true;updateDistanceHint();}
+        if(id==='distance'){invalidateRoadDistance();manualDistance=true;manualDistanceKey=roadKey();updateDistanceHint();updateRoadControls();}
         if(id==='tariff')manualRate=true;
         renderEstimate();
     }));
     ['origin','destination'].forEach(id=>$(id).addEventListener('input',()=>{
+        const hadRoadDistance = !!roadDistance;
+        invalidateRoadDistance();
+        if(hadRoadDistance || (manualDistance && manualDistanceKey !== roadKey())){
+            manualDistance=false;
+            manualDistanceKey=null;
+        }
         const found=findKnownRoute();
         if(found){
             const [routeId,route]=found;
@@ -206,6 +413,7 @@
             if(!manualDistance || !$('distance').value.trim()){
                 $('distance').value=route.modes[state.mode];
                 manualDistance=false;
+                manualDistanceKey=null;
             }
             if(!manualRate){$('tariff').value=RATES[state.mode].tkm;}
         }else{
@@ -216,6 +424,8 @@
         updateDistanceHint();
         renderAll();
     }));
+    ['origin','destination'].forEach(id => $(id).addEventListener('blur', scheduleRoadLookup));
+    $('road-route-btn').addEventListener('click', () => getRoadDistance(true));
     $('delivery-goal').addEventListener('change',()=>{manuallyChangedTerm=false;state.term=recTerm().code;renderAll();});
     $('international').addEventListener('change',renderEstimate);
 
@@ -329,7 +539,7 @@
             root.append(block);
         });
     }
-    function renderAll() { chooseFallback(); uiButtons(); renderTerms(); const rec = recommendation(); const box = $('compatibility'); box.className = 'status' + (rec.type === 'warn' ? ' warn' : rec.type === 'neutral' ? ' neutral' : ''); box.replaceChildren(); const title = document.createElement('strong'); title.textContent = rec.title; box.append(title, document.createTextNode(rec.message)); details(state.term); renderComparison(); renderEstimate(); }
+    function renderAll() { updateRoadControls(); chooseFallback(); uiButtons(); renderTerms(); const rec = recommendation(); const box = $('compatibility'); box.className = 'status' + (rec.type === 'warn' ? ' warn' : rec.type === 'neutral' ? ' neutral' : ''); box.replaceChildren(); const title = document.createElement('strong'); title.textContent = rec.title; box.append(title, document.createTextNode(rec.message)); details(state.term); renderComparison(); renderEstimate(); }
     document.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => changeTransport(btn.dataset.mode)));
     $('cargo').addEventListener('change', () => { if (state.mode === 'sea' && $('cargo').value === 'container')
         $('handover').value = 'terminal'; if (state.mode === 'sea' && $('cargo').value !== 'container' && $('handover').value === 'terminal')
