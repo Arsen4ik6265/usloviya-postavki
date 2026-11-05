@@ -1057,3 +1057,54 @@ main {
 @media(max-width:580px){.route-verification{align-items:stretch}.road-route-btn{width:100%}.road-route-status{flex-basis:100%}}
 
 .road-attribution{font-size:11px;color:#43667a;text-decoration:underline;text-underline-offset:2px;width:100%}
+
+/* V6 · сравнение сценариев. Самостоятельные мобильные карточки и CSS-график без библиотек. */
+.transport-comparison{margin-top:20px;scroll-margin-top:18px}
+.transport-compare-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.transport-compare-header h2{font-size:22px;letter-spacing:-.03em;margin:0 0 6px}
+.transport-compare-subtitle{font-size:13px;line-height:1.6;margin:0;color:var(--muted)}
+.mode-compare-disclaimer{margin:17px 0 16px;font-size:12px;line-height:1.65;color:#5a7080}
+.mode-compare-empty{padding:17px;background:#f9f6f2;border:1px solid #eacfb8;border-radius:9px;color:#75502c;line-height:1.6}
+.mode-winners{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0 24px}
+.mode-winner{padding:16px;border:1px solid #d7e5e2;border-radius:9px;background:#f5faf8;display:flex;flex-direction:column;gap:8px;min-width:0}
+.mode-winner-label{font-size:11px;font-weight:700;color:#536e6c}
+.mode-winner strong{font-size:15px;color:#102c3f;line-height:1.3}
+.mode-winner-value{font-size:13px;color:#145d55;font-weight:750}
+.mode-chart{padding:18px 20px;margin:16px 0 20px;border:1px solid #dee7ec;border-radius:10px;background:#fff}
+.mode-chart-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.mode-chart-head h3{margin:0;font-size:16px;letter-spacing:-.015em}
+.mode-chart-tabs{display:flex;padding:3px;background:#f0f4f5;border-radius:9px;gap:2px}
+.mode-chart-tabs button{border:0;border-radius:7px;padding:8px 14px;background:transparent;color:#426075;font-weight:700;font-size:12px}
+.mode-chart-tabs button[aria-pressed=true]{background:#fff;color:#0a6e66;box-shadow:0 1px 5px #17344920}
+.mode-chart-row+.mode-chart-row{margin-top:16px}
+.mode-chart-line{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:7px}
+.mode-chart-label{font-size:12px;color:#374e60;font-weight:650}
+.mode-chart-value{font-size:13px;color:#14364c;white-space:nowrap}
+.mode-chart-track{height:12px;background:#eef3f3;border-radius:10px;overflow:hidden}
+.mode-chart-fill{height:100%;min-width:3px;background:#a9c8c4;border-radius:10px;transition:width .2s ease}
+.mode-chart-fill.selected{background:#147e73}
+.mode-option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.mode-option{border:1px solid #dde7eb;border-radius:10px;background:#fff;padding:16px;min-width:0;display:flex;flex-direction:column;gap:13px}
+.mode-option-active{border-color:#5cafa4;background:#f8fcfb}
+.mode-option-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.mode-option-head strong{font-size:15px}
+.mode-option-tag{padding:4px 8px;border-radius:5px;background:#ebf1f1;color:#557072;font-size:10px;line-height:1.4}
+.mode-option-active .mode-option-tag{background:#dbf1e9;color:#087668}
+.mode-option-amounts{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.mode-option-amounts b{font-size:22px;letter-spacing:-.03em;color:#134e49}
+.mode-option-amounts span{font-size:15px;color:#264a59;font-weight:750}
+.mode-option-facts{margin:0;display:grid;gap:9px}
+.mode-option-facts div{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border-bottom:1px solid #edf1f2;padding-bottom:8px}
+.mode-option-facts dt{font-size:11px;line-height:1.5;color:#6a7a89}
+.mode-option-facts dd{font-size:11px;line-height:1.5;color:#244153;margin:0;text-align:right;max-width:55%;overflow-wrap:anywhere}
+.mode-select-btn{padding:11px 13px;margin-top:auto;border:1px solid #087b71;border-radius:7px;background:#147e73;color:#fff;font-size:12px;font-weight:700;text-align:center}
+.mode-select-btn:hover:not(:disabled){background:#08695f}
+.mode-select-btn:disabled{cursor:default;border-color:#cddcda;background:#f0f5f4;color:#58716e}
+@media(max-width:700px){
+ .mode-winners{grid-template-columns:1fr;gap:9px}
+ .mode-winner{padding:13px;gap:4px}
+ .mode-option-grid{grid-template-columns:1fr}
+ .mode-chart{padding:15px 13px}
+ .transport-compare-header h2{font-size:20px}
+}
+@media(prefers-reduced-motion:reduce){.mode-chart-fill{transition:none}}

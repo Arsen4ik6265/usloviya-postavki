@@ -23,13 +23,14 @@
     // Сценарные расстояния заданы для учебного примера, а не взяты из навигационного API.
     const ROUTES = {
         'nov-alex': { from: 'Новороссийск', to: 'Александрия', international: true, modes: {sea: 2800} },
-        'msk-kras': { from: 'Москва', to: 'Краснодар', international: false, modes: {road: 1350, rail: 1500} },
-        'msk-spb': { from: 'Москва', to: 'Санкт-Петербург', international: false, modes: {road: 720, rail: 660} },
-        'kazan-msk': { from: 'Казань', to: 'Москва', international: false, modes: {road: 820, rail: 790} },
+        'msk-kras': { from: 'Москва', to: 'Краснодар', international: false, modes: {road: 1350, rail: 1500, multi: 1530} },
+        'msk-spb': { from: 'Москва', to: 'Санкт-Петербург', international: false, modes: {road: 720, rail: 660, air: 650, multi: 780} },
+        'kazan-msk': { from: 'Казань', to: 'Москва', international: false, modes: {road: 820, rail: 790, air: 720} },
         'spb-ham': { from: 'Санкт-Петербург', to: 'Гамбург', international: true, modes: {sea: 2100, multi: 2350} },
         'sha-vla': { from: 'Шанхай', to: 'Владивосток', international: true, modes: {sea: 2400} }
     };
     // Все ставки — демонстрационные, на них нельзя делать коммерческие расчёты.
+    // Дополнительные альтернативы в ROUTES — модельные коридоры, не подтверждение перевозки.
     const RATES = {
         sea:   {tkm: 0.07, minimum: 450, origin: 130, destination: 150},
         road:  {tkm: 0.22, minimum: 600, origin: 100, destination: 100},
@@ -48,6 +49,7 @@
     let roadRequestController = null;
     let roadAutoTimer = null;
     const roadCache = new Map();
+    let transportChartMetric = 'cost';
 
     // Центры городов. Для построения маршрута используется автомобильная сеть OSM,
     // поэтому результат не является точным расстоянием от склада до склада.
@@ -284,8 +286,11 @@
         if (r){
             $('origin').value=r.from;$('destination').value=r.to;
             if (!(state.mode in r.modes)){
+                const previousMode=state.mode;
                 state.mode=Object.keys(r.modes)[0];
                 renderHandover();
+                if(state.mode==='sea' && previousMode!=='sea')
+                    $('handover').value=$('cargo').value==='container'?'terminal':'onboard';
             }
             manualDistance=false; manualDistanceKey=null; manualRate=false;
             $('distance').value=r.modes[state.mode];
@@ -297,14 +302,20 @@
         renderAll();
         scheduleRoadLookup();
     }
-    function estimateValues(term){
+    function estimateValues(term, scenario = null){
         const t=TERMS[term], route=currentRoute();
-        if (!hasValidInput())return null;
-        const weight=calcNumber('weight'), distance=calcNumber('distance'), rate=calcNumber('tariff'), declaredValue=calcNumber('cargo-value');
-        const params=RATES[state.mode];
-        const intl=route?route.international:$('international').checked;
+        if (!scenario && !hasValidInput())return null;
+        const weight=scenario ? scenario.weight : calcNumber('weight');
+        const distance=scenario ? scenario.distance : calcNumber('distance');
+        const rate=scenario ? scenario.rate : calcNumber('tariff');
+        const declaredValue=scenario ? scenario.declaredValue : calcNumber('cargo-value');
+        const mode=scenario ? scenario.mode : state.mode;
+        const cargo=scenario ? scenario.cargo : $('cargo').value;
+        if (![weight,distance,rate].every(n=>Number.isFinite(n)&&n>0) || !Number.isFinite(declaredValue) || declaredValue<0) return null;
+        const params=RATES[mode];
+        const intl=scenario ? scenario.international : route?route.international:$('international').checked;
         const main=Math.max(params.minimum,weight*distance*rate);
-        const handlingFactor=$('cargo').value==='container'?1.25:$('cargo').value==='general'?1.15:1;
+        const handlingFactor=cargo==='container'?1.25:cargo==='general'?1.15:1;
         const origin=(params.origin+weight*4)*handlingFactor;
         const destination=(params.destination+weight*4)*handlingFactor;
         const exportDoc=intl?180:0;
@@ -322,6 +333,173 @@
         const seller=items.filter(x=>x.owner===A).reduce((s,x)=>s+x.price,0);
         return {items,total,seller,buyer:total-seller,main,route};
     }
+
+    // V6: сравнение ограничено явно описанными учебными сценариями.
+    // Не предполагает фактической доступности морского, железнодорожного или авиационного сервиса.
+    const DELIVERY_MODEL = {
+        road: {kmPerDay: 500, handlingDays: 0.5},
+        rail: {kmPerDay: 650, handlingDays: 1.5},
+        sea: {kmPerDay: 410, handlingDays: 2.5},
+        air: {kmPerDay: 5200, handlingDays: 0.5},
+        multi: {kmPerDay: 480, handlingDays: 2.0}
+    };
+    const distanceNum = n => new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(n);
+    const daysLabel = n => '~' + new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(n) + ' дн.';
+    const goalLabel = {buyer:'Перевозку организует покупатель',seller:'Перевозку организует продавец',insured:'Продавец оплачивает перевозку и страхование',door:'Доставка до места назначения'};
+    function recForMode(mode) {
+        const goal=$('delivery-goal').value;
+        const isMarine=mode==='sea';
+        const onboard=$('cargo').value!=='container' && (state.mode!=='sea' || handover()==='onboard');
+        if (goal==='door') return 'DAP';
+        if (goal==='insured') return isMarine && onboard ? 'CIF':'CIP';
+        if (goal==='seller') return isMarine && onboard ? 'CFR':'CPT';
+        if (isMarine && state.mode==='sea' && handover()==='alongside') return 'FAS';
+        if (isMarine && onboard) return 'FOB';
+        return 'FCA';
+    }
+    function transportScenarios(){
+        const route=currentRoute();
+        const modes=route ? Object.keys(route.modes) : [state.mode];
+        const weight=calcNumber('weight'),declaredValue=calcNumber('cargo-value');
+        if (!Number.isFinite(weight) || weight<=0 || !Number.isFinite(declaredValue) || declaredValue<0) return [];
+        const international=route ? route.international : $('international').checked;
+        const rows=[];
+        for (const mode of modes){
+            let distance;
+            let distSource='Учебное расстояние';
+            if(mode===state.mode){
+                distance=calcNumber('distance');
+                if(manualDistance) distSource='Километраж введён вручную';
+                else if(mode==='road' && roadDistance?.key===roadKey()) distSource='OSRM / OpenStreetMap';
+            } else if(mode==='road' && roadCache.has(roadKey())){
+                distance=roadCache.get(roadKey()).km;
+                distSource='OSRM / OpenStreetMap';
+            } else {
+                distance=route?.modes[mode];
+            }
+            if(!Number.isFinite(distance) || distance<=0) continue;
+            const rate = mode===state.mode ? calcNumber('tariff') : RATES[mode].tkm;
+            if(!Number.isFinite(rate) || rate<=0)continue;
+            const recommendedTerm=recForMode(mode);
+            // Активная карточка всегда совпадает по стоимости с текущим калькулятором,
+            // даже если пользователь вручную выбрал другой Incoterms.
+            const term=mode===state.mode ? state.term : recommendedTerm;
+            const estimate=estimateValues(term,{weight,declaredValue,distance,rate,mode,cargo:$('cargo').value,international});
+            if(!estimate)continue;
+            const daily=DELIVERY_MODEL[mode];
+            const roadResult=mode==='road' && (roadDistance?.key===roadKey()?roadDistance:roadCache.get(roadKey()));
+            // При ручном исправлении километража время старого маршрута не применяется.
+            const osrm=roadResult && roadResult.km===distance ? roadResult : null;
+            // OSRM duration represents pure drive time, not trucking ETA. Eight driving hours/day is a MODEL assumption.
+            const routeDays=osrm ? osrm.seconds/3600/8 : distance/daily.kmPerDay;
+            const rawDays=routeDays+daily.handlingDays;
+            const days=Math.max(.5,Math.ceil(rawDays*2)/2);
+            rows.push({mode,name:MODES[mode],distance,distSource,rate,term,recommendedTerm,total:estimate.total,freight:estimate.main,days,sourceTime:osrm?'Движение OSRM + учебные остановки':'Учебная скорость + обработка'});
+        }
+        return rows;
+    }
+    function transportWinners(rows){
+        const costMin=Math.min(...rows.map(r=>r.total)),costMax=Math.max(...rows.map(r=>r.total));
+        const timeMin=Math.min(...rows.map(r=>r.days)),timeMax=Math.max(...rows.map(r=>r.days));
+        const cheapest=[...rows].sort((a,b)=>a.total-b.total||a.days-b.days)[0];
+        const fastest=[...rows].sort((a,b)=>a.days-b.days||a.total-b.total)[0];
+        const balanced=[...rows].sort((a,b)=>{
+            const aScore=.5*(a.total-costMin)/(costMax-costMin||1)+.5*(a.days-timeMin)/(timeMax-timeMin||1);
+            const bScore=.5*(b.total-costMin)/(costMax-costMin||1)+.5*(b.days-timeMin)/(timeMax-timeMin||1);
+            return aScore-bScore || a.total-b.total;
+        })[0];
+        return {cheapest,fastest,balanced};
+    }
+    function renderTransportComparison(){
+        const root=$('transport-comparison-result');
+        if(!root)return;
+        root.replaceChildren();
+        const scenarioRoute=currentRoute();
+        const rows=transportScenarios();
+        $('transport-context').textContent=($('origin').value.trim()||'Пункт отправления')+' → '+($('destination').value.trim()||'Пункт назначения')+' · '+(goalLabel[$('delivery-goal').value]||'Сравнение схем');
+        if (!rows.length){
+            const empty=document.createElement('p');empty.className='mode-compare-empty';
+            empty.textContent='Для сравнения нужны положительные вес и стоимость груза, а также расстояние и тариф. Проверьте параметры расчёта.';
+            root.append(empty);return;
+        }
+        const summary=document.createElement('p');summary.className='mode-compare-disclaimer';
+        summary.textContent=scenarioRoute ? 'Сравнение по учебным сценариям этого маршрута. Для выбранного вида транспорта используется текущий базис Incoterms, для альтернатив — рекомендованный по цели. Ставки и сроки не подтверждены перевозчиками.' : 'Для своего маршрута показан только выбранный вид транспорта. Для сравнения нескольких видов выберите маршрут из примеров.';
+        root.append(summary);
+        if(rows.length>1){
+            const winners=transportWinners(rows);
+            const panels=document.createElement('div');panels.className='mode-winners';
+            [
+                ['Минимальные расходы',winners.cheapest,usd(winners.cheapest.total)],
+                ['Самый быстрый по модели',winners.fastest,daysLabel(winners.fastest.days)],
+                ['Баланс 50/50',winners.balanced,usd(winners.balanced.total)+' · '+daysLabel(winners.balanced.days)]
+            ].forEach(([label,item,value])=>{
+                const card=document.createElement('div');card.className='mode-winner';
+                const caption=document.createElement('span');caption.className='mode-winner-label';caption.textContent=label;
+                const name=document.createElement('strong');name.textContent=item.name;
+                const result=document.createElement('span');result.className='mode-winner-value';result.textContent=value;
+                card.append(caption,name,result);panels.append(card);
+            });
+            root.append(panels);
+        }
+        const plot=document.createElement('div');plot.className='mode-chart';
+        const head=document.createElement('div');head.className='mode-chart-head';
+        const headTitle=document.createElement('h3');headTitle.textContent='Сравнение вариантов';
+        const switches=document.createElement('div');switches.className='mode-chart-tabs';switches.setAttribute('role','group');switches.setAttribute('aria-label','Что показать на графике');
+        [['cost','Стоимость'],['time','Срок']].forEach(([value,label])=>{
+            const button=document.createElement('button');button.type='button';button.textContent=label;
+            button.setAttribute('aria-pressed',String(value===transportChartMetric));
+            button.addEventListener('click',()=>{transportChartMetric=value;renderTransportComparison();});
+            switches.append(button);
+        });
+        head.append(headTitle,switches);plot.append(head);
+        const maximum=Math.max(...rows.map(r=>transportChartMetric==='cost'?r.total:r.days));
+        [...rows].sort((a,b)=>transportChartMetric==='cost'?a.total-b.total:a.days-b.days).forEach(item=>{
+            const row=document.createElement('div');row.className='mode-chart-row';
+            const line=document.createElement('div');line.className='mode-chart-line';
+            const n=document.createElement('span');n.className='mode-chart-label';n.textContent=item.name;
+            const v=document.createElement('strong');v.className='mode-chart-value';v.textContent=transportChartMetric==='cost'?usd(item.total):daysLabel(item.days);
+            line.append(n,v);
+            const track=document.createElement('div');track.className='mode-chart-track';
+            const fill=document.createElement('div');fill.className='mode-chart-fill';
+            fill.style.width=Math.max(2,100*(transportChartMetric==='cost'?item.total:item.days)/maximum)+'%';
+            if(item.mode===state.mode)fill.classList.add('selected');
+            track.append(fill);row.append(line,track);plot.append(row);
+        });
+        root.append(plot);
+        const cards=document.createElement('div');cards.className='mode-option-grid';
+        rows.forEach(item=>{
+            const card=document.createElement('article');card.className='mode-option';
+            if(item.mode===state.mode)card.classList.add('mode-option-active');
+            const top=document.createElement('div');top.className='mode-option-head';
+            const title=document.createElement('strong');title.textContent=item.name;
+            const flag=document.createElement('span');flag.className='mode-option-tag';flag.textContent=item.mode===state.mode?'Выбранный':'Учебная альтернатива';
+            top.append(title,flag);
+            const amounts=document.createElement('div');amounts.className='mode-option-amounts';
+            const total=document.createElement('b');total.textContent=usd(item.total);
+            const eta=document.createElement('span');eta.textContent=daysLabel(item.days);
+            amounts.append(total,eta);
+            const details=document.createElement('dl');details.className='mode-option-facts';
+            [['Расстояние',distanceNum(item.distance)+' км'],['Основная перевозка',usd(item.freight)],['Базис в расчёте',item.term],['Рекомендация Incoterms',item.recommendedTerm],['Источник расстояния',item.distSource]].forEach(([key,value],i)=>{
+                const wrap=document.createElement('div'),k=document.createElement('dt'),v=document.createElement('dd');
+                k.textContent=key;v.textContent=value;wrap.append(k,v);details.append(wrap);
+            });
+            const button=document.createElement('button');button.type='button';button.className='mode-select-btn';
+            button.textContent=item.mode===state.mode?'Выбран в калькуляторе':'Рассчитать этот вариант';
+            button.disabled=item.mode===state.mode;
+            button.addEventListener('click',()=>{
+                // Reuse original changeTransport (same state transitions & guards).
+                manualRate=false;
+                changeTransport(item.mode);
+                $('estimate-title').scrollIntoView({behavior:'smooth',block:'start'});
+            });
+            card.append(top,amounts,details,button);cards.append(card);
+        });
+        root.append(cards);
+        const foot=document.createElement('p');foot.className='mode-compare-disclaimer';
+        foot.textContent='Принцип: стоимость = тот же учебный расчёт (вес × расстояние × тариф + обработка и оформление; страхование — когда требуется по рекомендованному базису). Срок — условная скорость и время обработки. Для автодорог при наличии OSRM используется время чистого движения с учебным допущением 8 часов в день. Нет данных о расписаниях, работе портов, наличии рейсов, ограничениях грузовиков и границах. Баланс — равный вес нормализованных стоимости и срока, только внутри показанных вариантов.';
+        root.append(foot);
+    }
+
     function renderEstimate(){
         const root=$('estimate-result');
         root.replaceChildren();
@@ -330,7 +508,7 @@
         if(!hasValidInput()){
             const error=document.createElement('div');error.className='estimate-empty';
             error.textContent='Укажите положительные вес, расстояние и тариф. Для своего маршрута расстояние нужно ввести самостоятельно. Стоимость груза не должна быть отрицательной.';
-            root.append(error);return;
+            root.append(error);renderTransportComparison();return;
         }
         const estimate=estimateValues(state.term);
         if(!estimate)return;
@@ -368,6 +546,7 @@
         const caution=document.createElement('p');caution.className='estimate-sub';
         caution.textContent='Важно: Incoterms распределяет затраты и риски, но не определяет рыночную цену перевозки. Этот расчёт не включает стоимость товара, налоги, пошлины и индивидуальные сборы; суммы не являются котировкой.';
         root.append(caution);
+        renderTransportComparison();
     }
     function changeTransport(mode){
         if (state.mode === mode) return;
@@ -406,8 +585,11 @@
             routeSelect.value=routeId;
             $('international-row').hidden=true;
             if(!route.modes[state.mode]){
+                const previousMode=state.mode;
                 state.mode=Object.keys(route.modes)[0];
                 renderHandover();
+                if(state.mode==='sea' && previousMode!=='sea')
+                    $('handover').value=$('cargo').value==='container'?'terminal':'onboard';
             }
             // Если пользователь уже ввёл свой километраж, не перезаписываем его.
             if(!manualDistance || !$('distance').value.trim()){

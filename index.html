@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <meta name="description" content="Условия поставки: выбор базиса Incoterms 2020 с учётом вида транспорта и способа передачи груза.">
   <title>Условия поставки — Incoterms 2020</title>
-  <link rel="stylesheet" href="./style.css?v=5">
+  <link rel="stylesheet" href="./style.css?v=6">
 </head>
 <body>
 <header>
@@ -14,7 +14,8 @@
     <div class="logo">Условия поставки</div>
     <nav class="top-links" aria-label="Разделы страницы">
       <a href="#configurator">Параметры</a>
-      <a href="#comparison">Сравнение</a>
+      <a href="#transport-comparison">Транспорт</a>
+      <a href="#comparison">Incoterms</a>
     </nav>
   </div>
 </header>
@@ -28,7 +29,7 @@
   <div class="columns" id="configurator">
     <section class="panel" aria-labelledby="form-title">
       <h2 class="panel-title" id="form-title">Параметры перевозки</h2>
-      <p class="panel-sub">Выберите маршрут и заполните параметры. Расчёт стоимости выполняется на условных тарифах.</p>
+      <p class="panel-sub">Выберите маршрут и заполните параметры. Ниже можно сравнить расходы и сроки доступных учебных сценариев.</p>
       <div class="frow route-first">
         <label class="field field-full">Маршрут из примеров
           <select class="input" id="route-preset">
@@ -122,6 +123,16 @@
       </section>
     </div>
   </div>
+  <section class="panel transport-comparison" id="transport-comparison" aria-labelledby="transport-compare-title">
+    <div class="transport-compare-header">
+      <div>
+        <h2 id="transport-compare-title">Сравнение вариантов перевозки</h2>
+        <p class="transport-compare-subtitle" id="transport-context">Расходы и сроки по учебной модели</p>
+      </div>
+      <span class="estimate-pill">Расчётные сценарии</span>
+    </div>
+    <div id="transport-comparison-result" aria-live="polite"></div>
+  </section>
   <section class="panel comparison" id="comparison" aria-labelledby="comparison-title">
     <div class="compare-head"><div><h2 id="comparison-title">Сравнение условий</h2><p class="panel-sub" style="margin:6px 0 0">Сравните, кто организует перевозку, оформляет груз и несёт расходы.</p></div><label class="compare-control"><span class="compare-label">Сравнить с</span><select id="compare-term" class="input" aria-label="Второй базис для сравнения" style="min-width:120px"></select></label></div>
     <div class="compare-cards" id="comparison-cards"></div>
@@ -130,6 +141,6 @@
 </main>
 <footer class="foot"><span>Условия поставки · Incoterms 2020</span><span>Учебная модель расчёта, не тарифное предложение</span></footer>
 <div class="alertbar hidden" id="toast" role="status" aria-live="polite"></div>
-<script src="./app.js?v=5" defer></script>
+<script src="./app.js?v=6" defer></script>
 </body>
 </html>
