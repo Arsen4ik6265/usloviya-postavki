@@ -110,6 +110,14 @@
         const r=quoteRate(q);
         return q.label+' · '+q.date+' · '+r.toLocaleString('ru-RU',{maximumFractionDigits:2})+' ₽/маш·км';
     }
+    // Доплаты вводит пользователь по предложению перевозчика; по умолчанию 0.
+    // Для внутренней автомобильной перевозки исходная ставка НЕ включает эти строки автоматически.
+    const ROAD_EXPENSES = [
+        {id:'road-loading',name:'Погрузка и разгрузка (по предложению)'},
+        {id:'road-tolls',name:'Платные дороги (по предложению)'},
+        {id:'road-waiting',name:'Простой / ожидание (по предложению)'},
+        {id:'road-other',name:'Прочие согласованные расходы'}
+    ];
     function populateMarketOptions(){
         const wrap=$('market-rate-controls');
         const visible=scopeDomestic() && state.mode==='road';
@@ -128,7 +136,7 @@
         const selected=selectedMarketQuote();
         sel.value=marketQuoteChoice==='manual'?'manual':(selected?selected.id:'manual');
         $('market-data-status').textContent=marketCatalogStatus;
-        $('road-extra').disabled=false;
+        ROAD_EXPENSES.forEach(({id})=>{$(id).disabled=false;});
     }
     function updateTariffUi(){
         $('tariff-label').textContent='Расчётная ставка, '+tariffUnits();
@@ -519,7 +527,7 @@
     }
     function setPresetRoute(){
         invalidateRoadDistance();
-        $('road-extra').value='0';
+        ROAD_EXPENSES.forEach(({id})=>{$(id).value='0';});
         const r=currentRoute();
         if (!r) {
             $('origin').value='';$('destination').value='';
@@ -567,7 +575,11 @@
         const handlingFactor=cargo==='container'?1.25:cargo==='general'?1.15:1;
         const origin=(!intl&&mode==='road')?0:(params.origin+weight*(intl?4:35))*handlingFactor;
         const destination=(!intl&&mode==='road')?0:(params.destination+weight*(intl?4:35))*handlingFactor;
-        const roadExtra=(!intl&&mode==='road')?Math.max(0,calcNumber('road-extra')):0;
+        const roadExtras=(!intl&&mode==='road')?ROAD_EXPENSES.map(({id,name})=>({
+            name,
+            price:Math.max(0,Number.isFinite(calcNumber(id))?calcNumber(id):0),
+            owner:goal==='buyer'?B:A
+        })).filter(x=>x.price>0):[];
         const customs=intl && $('customs-applicable').checked;
         const exportDoc=customs?180:0;
         const importAdmin=customs?220:0;
@@ -577,7 +589,7 @@
         const items=[
             {name:'Погрузка / обработка при отправлении',price:origin,owner:intl?(term==='EXW'?B:A):(goal==='buyer'?B:A)},
             {name:'Основная перевозка',price:main,owner:intl?t.freight:(goal==='buyer'?B:A)},
-            ...(roadExtra>0?[{name:'Дополнительные услуги (введены вручную)',price:roadExtra,owner:goal==='buyer'?B:A}]:[]),
+            ...roadExtras,
             ...(customs?[{name:'Услуги по экспортному оформлению (условно)',price:exportDoc,owner:t.export}]:[]),
             {name:'Обработка / разгрузка в пункте назначения',price:destination,owner:intl?t.unloading:(goal==='door'?A:B)},
             ...(customs?[{name:'Услуги по импортному оформлению (без пошлин)',price:importAdmin,owner:t.import}]:[]),
@@ -687,17 +699,26 @@
             const winners=transportWinners(rows);
             const panels=document.createElement('div');panels.className='mode-winners';
             [
-                ['Минимальные расходы (модель)',winners.cheapest,money(winners.cheapest.total)],
-                ['Самый быстрый по модели',winners.fastest,daysLabel(winners.fastest)],
-                ['Баланс 50/50 (модель)',winners.balanced,money(winners.balanced.total)+' · '+daysLabel(winners.balanced)]
-            ].forEach(([label,item,value])=>{
+                ['Минимальные расходы (модель)',winners.cheapest],
+                ['Самый быстрый по модели',winners.fastest],
+                ['Баланс 50/50 (модель)',winners.balanced]
+            ].forEach(([label,item])=>{
                 const card=document.createElement('div');card.className='mode-winner';
                 const caption=document.createElement('span');caption.className='mode-winner-label';caption.textContent=label;
                 const name=document.createElement('strong');name.textContent=item.name;
-                const result=document.createElement('span');result.className='mode-winner-value';
-                const converted=label==='Самый быстрый по модели'?null:fxSub(item.total);
-                result.textContent=value+(converted?' · '+converted:'');
-                card.append(caption,name,result);panels.append(card);
+                const metrics=document.createElement('div');metrics.className='mode-winner-metrics';
+                [['Стоимость',money(item.total)],['Срок',daysLabel(item)]].forEach(([metric,value])=>{
+                    const line=document.createElement('div');line.className='mode-winner-metric';
+                    const labelNode=document.createElement('span');labelNode.textContent=metric;
+                    const valueNode=document.createElement('b');valueNode.textContent=value;
+                    line.append(labelNode,valueNode);metrics.append(line);
+                });
+                const converted=fxSub(item.total);
+                if(converted){
+                    const conversion=document.createElement('small');conversion.className='mode-winner-converted';
+                    conversion.textContent='Справочно: '+converted;metrics.append(conversion);
+                }
+                card.append(caption,name,metrics);panels.append(card);
             });
             root.append(panels);
         }
@@ -835,7 +856,7 @@
         root.append(totals);
         const detail=document.createElement('p');detail.className='estimate-sub';
         detail.textContent=scopeDomestic()&&state.mode==='road'
-         ? 'Автоперевозка: расстояние × опубликованная/введённая ставка ₽/маш·км'+(calcNumber('weight')>20?' × '+truckCount(calcNumber('weight'))+' расчётных машин':'')+' (не менее '+money(DOMESTIC_RATES.road.minimum)+') = '+money(estimate.main)+'. Дополнительные услуги включаются только если указаны вручную.'
+         ? 'Автоперевозка: расстояние × опубликованная/введённая ставка ₽/маш·км'+(calcNumber('weight')>20?' × '+truckCount(calcNumber('weight'))+' расчётных машин':'')+' (не менее '+money(DOMESTIC_RATES.road.minimum)+') = '+money(estimate.main)+'. Расходы сверх ставки учитываются только по введённым пользователем суммам, без автоматического начисления.'
          : 'Основная перевозка: максимум из '+money(rateModel(state.mode).minimum)+' и (вес × расстояние × ставка) = '+money(estimate.main)+'. Остальные статьи рассчитаны по учебным ставкам.';
         root.append(detail);
         const caution=document.createElement('p');caution.className='estimate-sub';
@@ -869,7 +890,7 @@
         if(!manualRate)setDefaultRate();
         renderEstimate();
     });
-    $('road-extra').addEventListener('input', renderEstimate);
+    ROAD_EXPENSES.forEach(({id})=>$(id).addEventListener('input', renderEstimate));
     ['weight','distance','tariff','cargo-value'].forEach(id=>$(id).addEventListener('input',()=>{
         if(id==='distance'){invalidateRoadDistance();manualDistance=true;manualDistanceKey=roadKey();updateDistanceHint();updateRoadControls();}
         if(id==='tariff'){manualRate=true;marketQuoteChoice='manual';}

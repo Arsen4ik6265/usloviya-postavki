@@ -1158,3 +1158,24 @@ body.scope-domestic #cargo-field{grid-column:1/-1}
 @media(max-width:580px){.market-rate-controls{padding:10px}.market-rate-controls .input{font-size:16px}}
 
 body.scope-domestic .fx-line,body.scope-domestic #fx-status,body.scope-domestic .fx-explainer{display:none}
+
+
+/* V10.0 — разбивка дополнительных расходов и единый формат рекомендаций */
+.road-expenses{border-top:1px solid #e0eae9;padding-top:13px;display:flex;flex-direction:column;gap:10px}
+.road-expenses h3{margin:0;color:#143a39;font-size:14px;font-weight:760;line-height:1.35}
+.road-expenses-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.road-expenses-grid .field{display:flex;flex-direction:column;min-width:0;gap:7px}
+.road-expenses-grid .field>span{display:flex;align-items:end;min-height:32px;line-height:1.4}
+.road-expenses-grid .input{margin-top:auto;font-variant-numeric:tabular-nums}
+.mode-winner-metrics{display:grid;gap:6px;margin-top:3px}
+.mode-winner-metric{display:flex;justify-content:space-between;align-items:baseline;gap:10px;min-width:0}
+.mode-winner-metric span{font-size:11px;color:#586e72;line-height:1.45}
+.mode-winner-metric b{font-size:13px;color:#175f57;white-space:nowrap;font-weight:750;font-variant-numeric:tabular-nums}
+.mode-winner-converted{font-size:10px;color:#627983}
+@media(max-width:580px){
+  .road-expenses-grid{gap:11px 9px}
+  .road-expenses-grid .field>span{min-height:51px}
+  .road-expenses-grid .input{min-height:44px;padding:8px 7px}
+  .mode-winner-metric b{font-size:13px}
+}
+@media(max-width:350px){.road-expenses-grid{grid-template-columns:1fr}.road-expenses-grid .field>span{min-height:0}}

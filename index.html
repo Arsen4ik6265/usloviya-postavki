@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <meta name="description" content="Условия поставки: сравнение перевозок внутри страны и для ВЭД, учебный расчёт расходов, Incoterms 2020.">
   <title>Условия поставки — логистика по России и ВЭД</title>
-  <link rel="stylesheet" href="./style.css?v=9">
+  <link rel="stylesheet" href="./style.css?v=10">
 </head>
 <body>
 <header>
@@ -93,9 +93,16 @@
               <select class="input" id="market-quote"><option value="manual">Своя ставка</option></select>
             </label>
             <p class="market-note" id="market-data-status">Справочник загружается…</p>
-            <label class="field"><span>Дополнительные услуги, ₽ — по предложению перевозчика</span>
-              <input class="input" id="road-extra" type="number" inputmode="decimal" value="0" min="0" step="100" placeholder="0 — не добавлять" />
-            </label>
+            <div class="road-expenses" role="group" aria-labelledby="road-expenses-title">
+              <h3 id="road-expenses-title">Расходы сверх ставки за перевозку</h3>
+              <p class="market-note">Заполняйте только то, что <b>не входит</b> в выбранную ставку перевозчика. Если расход уже включён в цену рейса, оставьте 0 ₽.</p>
+              <div class="road-expenses-grid">
+                <label class="field"><span>Погрузка и разгрузка, ₽</span><input class="input" id="road-loading" type="number" inputmode="decimal" value="0" min="0" step="100"></label>
+                <label class="field"><span>Платные дороги, ₽</span><input class="input" id="road-tolls" type="number" inputmode="decimal" value="0" min="0" step="100"></label>
+                <label class="field"><span>Простой / ожидание, ₽</span><input class="input" id="road-waiting" type="number" inputmode="decimal" value="0" min="0" step="100"></label>
+                <label class="field"><span>Прочие согласованные расходы, ₽</span><input class="input" id="road-other" type="number" inputmode="decimal" value="0" min="0" step="100"></label>
+              </div>
+            </div>
             <p class="market-note">Полная машина до 20 т (FTL): ставка за автомобиль и километр, не за тонно-километр. При более 20 т сайт условно считает несколько машин. Тарифы тента не применяются автоматически к зерновозу, цистерне или контейнеровозу.</p>
           </div>
           <p id="rate-source" class="market-note">Для автоперевозок по России ставка берётся из опубликованного прайса; остальные виды транспорта — учебная модель.</p>
@@ -181,6 +188,6 @@
 </main>
 <footer class="foot"><span>Условия поставки · логистика и ВЭД</span><span>Модельные сроки · источники ставок и курса</span></footer>
 <div class="alertbar hidden" id="toast" role="status" aria-live="polite"></div>
-<script src="./app.js?v=9" defer></script>
+<script src="./app.js?v=10" defer></script>
 </body>
 </html>
