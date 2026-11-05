@@ -71,11 +71,12 @@
           <span class="estimate-pill">Учебная модель</span>
         </div>
         <div class="frow calc-grid">
-          <label class="field">Вес груза, тонн<input class="input" id="weight" type="number" value="20" min="0.1" max="5000" step="0.1" inputmode="decimal"></label>
-          <label class="field">Расстояние по сценарию, км<input class="input" id="distance" type="number" value="2800" min="1" max="50000" step="1" inputmode="numeric"></label>
-          <label class="field">Условный тариф, USD/т·км<input class="input" id="tariff" type="number" value="0.07" min="0.001" max="100" step="0.001" inputmode="decimal"></label>
-          <label class="field">Стоимость груза, USD<input class="input" id="cargo-value" type="number" value="30000" min="0" max="1000000000" step="100" inputmode="decimal"></label>
+          <label class="field"><span class="calc-label">Вес груза, тонн</span><input class="input" id="weight" type="number" value="20" min="0.1" max="5000" step="0.1" inputmode="decimal"></label>
+          <label class="field"><span class="calc-label">Расстояние по маршруту, км</span><input class="input" id="distance" type="number" value="2800" min="1" max="50000" step="1" inputmode="numeric" aria-describedby="distance-hint"></label>
+          <label class="field"><span class="calc-label">Условный тариф, USD/т·км</span><input class="input" id="tariff" type="number" value="0.07" min="0.001" max="100" step="0.001" inputmode="decimal"></label>
+          <label class="field"><span class="calc-label">Стоимость груза, USD</span><input class="input" id="cargo-value" type="number" value="30000" min="0" max="1000000000" step="100" inputmode="decimal"></label>
         </div>
+        <p class="distance-hint" id="distance-hint" role="status" aria-live="polite">Ориентир по выбранному маршруту. Значение можно изменить вручную.</p>
         <label class="field">Какой результат нужен?
           <select class="input" id="delivery-goal">
             <option value="buyer">Основную перевозку организует покупатель</option>
@@ -84,7 +85,7 @@
             <option value="door">Продавец доставляет груз до места назначения</option>
           </select>
         </label>
-        <p class="estimate-disclaimer">Расстояния и тарифы ниже — <b>условные параметры для тренировки расчёта</b>, а не реальные предложения перевозчиков. Их можно изменить.</p>
+        <p class="estimate-disclaimer">Расстояния и тарифы — <b>условные параметры для тренировки расчёта</b>, а не реальные предложения перевозчиков. Их можно изменить.</p>
         <div class="estimate-result" id="estimate-result" aria-live="polite"></div>
       </section>
       <div class="divider"></div>

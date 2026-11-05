@@ -56,6 +56,23 @@
         return {code:'FCA',reason:'Покупатель организует основную перевозку; продавец передаёт груз назначенному перевозчику в согласованном месте.'};
     }
     function currentRoute(){return ROUTES[routeSelect.value];}
+    function normalizedPlace(text){return text.trim().toLocaleLowerCase('ru').replaceAll('ё','е').replace(/[.,]/g,'').replace(/\s+/g,' ');}
+    function findKnownRoute(){
+        const start=normalizedPlace($('origin').value);
+        const finish=normalizedPlace($('destination').value);
+        return Object.entries(ROUTES).find(([,route]) => normalizedPlace(route.from)===start && normalizedPlace(route.to)===finish);
+    }
+    function updateDistanceHint(){
+        const known=currentRoute();
+        const hint=$('distance-hint');
+        if(manualDistance && $('distance').value.trim()){
+            hint.textContent='Расстояние изменено вручную. Оно используется в расчёте; вы можете изменить его ещё раз.';
+        } else if(known && known.modes[state.mode]){
+            hint.textContent='Ориентировочное расстояние из учебного сценария. Не навигационный расчёт. Значение можно изменить.';
+        } else {
+            hint.textContent='Для этого маршрута готового расстояния нет. Введите километраж вручную; при изменении данных сумма пересчитается.';
+        }
+    }
     function setPresetRoute(){
         const r=currentRoute();
         $('international-row').hidden=!!r;
@@ -75,6 +92,7 @@
             manuallyChangedTerm=false;
             state.term=recTerm().code;
         }
+        updateDistanceHint();
         renderAll();
     }
     function estimateValues(term){
@@ -165,21 +183,37 @@
         }
         if(!manualRate){$('tariff').value=RATES[mode].tkm;}
         if(!manuallyChangedTerm)state.term=recTerm().code;
+        updateDistanceHint();
         renderAll();
     }
     routeSelect.addEventListener('change',setPresetRoute);
     ['weight','distance','tariff','cargo-value'].forEach(id=>$(id).addEventListener('input',()=>{
-        if(id==='distance')manualDistance=true;
+        if(id==='distance'){manualDistance=true;updateDistanceHint();}
         if(id==='tariff')manualRate=true;
         renderEstimate();
     }));
     ['origin','destination'].forEach(id=>$(id).addEventListener('input',()=>{
-        if(currentRoute()){
+        const found=findKnownRoute();
+        if(found){
+            const [routeId,route]=found;
+            routeSelect.value=routeId;
+            $('international-row').hidden=true;
+            if(!route.modes[state.mode]){
+                state.mode=Object.keys(route.modes)[0];
+                renderHandover();
+            }
+            // Если пользователь уже ввёл свой километраж, не перезаписываем его.
+            if(!manualDistance || !$('distance').value.trim()){
+                $('distance').value=route.modes[state.mode];
+                manualDistance=false;
+            }
+            if(!manualRate){$('tariff').value=RATES[state.mode].tkm;}
+        }else{
             routeSelect.value='custom';
             $('international-row').hidden=false;
-            $('distance').value='';
-            manualDistance=true;
+            if(!manualDistance){$('distance').value='';}
         }
+        updateDistanceHint();
         renderAll();
     }));
     $('delivery-goal').addEventListener('change',()=>{manuallyChangedTerm=false;state.term=recTerm().code;renderAll();});
