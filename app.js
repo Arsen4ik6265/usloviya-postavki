@@ -19,6 +19,172 @@
     const SEA = ['FAS', 'FOB', 'CFR', 'CIF'];
     const MODES = { sea: 'Морская / речная', road: 'Автомобильная', rail: 'Железнодорожная', air: 'Авиационная', multi: 'Мультимодальная' };
     let state = { mode: 'sea', term: 'FOB', comparison: 'CIF' };
+
+    // Сценарные расстояния заданы для учебного примера, а не взяты из навигационного API.
+    const ROUTES = {
+        'nov-alex': { from: 'Новороссийск', to: 'Александрия', international: true, modes: {sea: 2800} },
+        'msk-kras': { from: 'Москва', to: 'Краснодар', international: false, modes: {road: 1350, rail: 1500} },
+        'msk-spb': { from: 'Москва', to: 'Санкт-Петербург', international: false, modes: {road: 720, rail: 660} },
+        'kazan-msk': { from: 'Казань', to: 'Москва', international: false, modes: {road: 820, rail: 790} },
+        'spb-ham': { from: 'Санкт-Петербург', to: 'Гамбург', international: true, modes: {sea: 2100, multi: 2350} },
+        'sha-vla': { from: 'Шанхай', to: 'Владивосток', international: true, modes: {sea: 2400} }
+    };
+    // Все ставки — демонстрационные, на них нельзя делать коммерческие расчёты.
+    const RATES = {
+        sea:   {tkm: 0.07, minimum: 450, origin: 130, destination: 150},
+        road:  {tkm: 0.22, minimum: 600, origin: 100, destination: 100},
+        rail:  {tkm: 0.12, minimum: 800, origin: 170, destination: 170},
+        air:   {tkm: 3.50, minimum: 2500, origin: 250, destination: 250},
+        multi: {tkm: 0.19, minimum: 950, origin: 240, destination: 240}
+    };
+    const usd = n => new Intl.NumberFormat('ru-RU',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
+    const routeSelect = $('route-preset');
+    let manualDistance = false;
+    let manualRate = false;
+    let manuallyChangedTerm = false;
+    function calcNumber(id){return Number($(id).value);}
+    function hasValidInput(){return [calcNumber('weight'),calcNumber('distance'),calcNumber('tariff')].every(x=>Number.isFinite(x)&&x>0)&&calcNumber('cargo-value')>=0;}
+    function recTerm(){
+        const goal = $('delivery-goal').value;
+        const marine = state.mode === 'sea';
+        const h = handover();
+        if (goal === 'door') return {code:'DAP', reason:'Продавец доставляет товар до названного пункта назначения, готовый к разгрузке. Импортное оформление обычно остаётся за покупателем.'};
+        if (goal === 'insured') return marine && h === 'onboard' ? {code:'CIF',reason:'Продавец организует фрахт и предусмотренное страхование; риск переходит на борту судна в порту отправления.'} : {code:'CIP',reason:'Продавец оплачивает перевозку и предусмотренное страхование, а риск переходит при передаче перевозчику.'};
+        if (goal === 'seller') return marine && h === 'onboard' ? {code:'CFR',reason:'Продавец оплачивает фрахт до порта назначения, но риск переходит покупателю при погрузке на судно.'} : {code:'CPT',reason:'Продавец оплачивает доставку до указанного места; риск переходит при передаче первому перевозчику.'};
+        if (marine && h === 'alongside') return {code:'FAS',reason:'Покупатель организует морскую перевозку; продавец передаёт товар вдоль борта судна.'};
+        if (marine && h === 'onboard' && $('cargo').value !== 'container') return {code:'FOB',reason:'Покупатель организует морскую перевозку; продавец поставляет груз на борт судна в порту отправления.'};
+        return {code:'FCA',reason:'Покупатель организует основную перевозку; продавец передаёт груз назначенному перевозчику в согласованном месте.'};
+    }
+    function currentRoute(){return ROUTES[routeSelect.value];}
+    function setPresetRoute(){
+        const r=currentRoute();
+        $('international-row').hidden=!!r;
+        if (!r) {
+            $('distance').value = '';
+            manualDistance = true;
+        }
+        if (r){
+            $('origin').value=r.from;$('destination').value=r.to;
+            if (!(state.mode in r.modes)){
+                state.mode=Object.keys(r.modes)[0];
+                renderHandover();
+            }
+            manualDistance=false; manualRate=false;
+            $('distance').value=r.modes[state.mode];
+            $('tariff').value=RATES[state.mode].tkm;
+            manuallyChangedTerm=false;
+            state.term=recTerm().code;
+        }
+        renderAll();
+    }
+    function estimateValues(term){
+        const t=TERMS[term], route=currentRoute();
+        if(route && !(state.mode in route.modes))return null;
+        if (!hasValidInput())return null;
+        const weight=calcNumber('weight'), distance=calcNumber('distance'), rate=calcNumber('tariff'), declaredValue=calcNumber('cargo-value');
+        const params=RATES[state.mode];
+        const intl=route?route.international:$('international').checked;
+        const main=Math.max(params.minimum,weight*distance*rate);
+        const handlingFactor=$('cargo').value==='container'?1.25:$('cargo').value==='general'?1.15:1;
+        const origin=(params.origin+weight*4)*handlingFactor;
+        const destination=(params.destination+weight*4)*handlingFactor;
+        const exportDoc=intl?180:0;
+        const importAdmin=intl?220:0;
+        const insurance=(term==='CIF'||term==='CIP')?Math.max(70,declaredValue*(term==='CIP'?0.006:0.003)):0;
+        const items=[
+            {name:'Погрузка / обработка при отправлении',price:origin,owner:term==='EXW'?B:A},
+            {name:'Основная перевозка',price:main,owner:t.freight},
+            {name:'Экспортные документы (условно)',price:exportDoc,owner:t.export},
+            {name:'Обработка / разгрузка в пункте назначения',price:destination,owner:t.unloading},
+            {name:'Импортное оформление — услуги (без пошлин)',price:importAdmin,owner:t.import},
+            {name:'Обязательное страхование по базису',price:insurance,owner:t.insurance}
+        ].filter(x=>x.price>0);
+        const total=items.reduce((s,x)=>s+x.price,0);
+        const seller=items.filter(x=>x.owner===A).reduce((s,x)=>s+x.price,0);
+        return {items,total,seller,buyer:total-seller,main,route};
+    }
+    function renderEstimate(){
+        const root=$('estimate-result');
+        root.replaceChildren();
+        const route=currentRoute();
+        const rec=recTerm();
+        if(route && !(state.mode in route.modes)){
+            const error=document.createElement('div');error.className='estimate-empty';
+            error.textContent='Для этого демонстрационного маршрута выбранный вид транспорта не предусмотрен. Выберите поддерживаемый вариант или создайте свой маршрут.';
+            root.append(error);return;
+        }
+        if(!hasValidInput()){
+            const error=document.createElement('div');error.className='estimate-empty';
+            error.textContent='Укажите положительные вес, расстояние и тариф. Для своего маршрута расстояние нужно ввести самостоятельно. Стоимость груза не должна быть отрицательной.';
+            root.append(error);return;
+        }
+        const estimate=estimateValues(state.term);
+        if(!estimate)return;
+        const top=document.createElement('div');top.className='estimate-summary';
+        const heading=document.createElement('h3');heading.textContent='Подходящий базис под выбранную задачу';
+        const recommendation=document.createElement('p');recommendation.className='estimate-recommend';recommendation.textContent=rec.code+' — '+TERMS[rec.code].name;
+        const why=document.createElement('p');why.className='estimate-reason';why.textContent=rec.reason;
+        top.append(heading,recommendation,why);
+        if(state.term!==rec.code){
+            const actions=document.createElement('div');actions.className='estimate-actions';
+            const apply=document.createElement('button');apply.type='button';apply.textContent='Выбрать '+rec.code;
+            apply.addEventListener('click',()=>{state.term=rec.code;manuallyChangedTerm=false;renderAll();});
+            actions.append(apply);top.append(actions);
+        }
+        root.append(top);
+        const sum=document.createElement('div');sum.className='estimate-value';sum.textContent=usd(estimate.total);
+        const sumLabel=document.createElement('p');sumLabel.className='estimate-sub';sumLabel.textContent='Сумма моделируемых транспортных и сопутствующих расходов · выбран базис '+state.term;
+        const range=document.createElement('p');range.className='estimate-sub';range.textContent='Иллюстративный диапазон ±25%: '+usd(estimate.total*.75)+' — '+usd(estimate.total*1.25)+' (не статистическая оценка).';
+        root.append(sum,sumLabel,range);
+        const table=document.createElement('table');table.className='estimate-table';
+        const thead=document.createElement('thead');thead.innerHTML='<tr><th>Статья</th><th>За счёт кого</th><th>Сумма</th></tr>';
+        const body=document.createElement('tbody');
+        estimate.items.forEach(item=>{
+            const tr=document.createElement('tr');
+            [item.name, item.owner===A?'Продавец':item.owner===B?'Покупатель':'По выбору сторон',usd(item.price)].forEach(value=>{const td=document.createElement('td');td.textContent=value;tr.append(td)});
+            body.append(tr);
+        });
+        table.append(thead,body);root.append(table);
+        const totals=document.createElement('p');totals.className='estimate-totals';
+        totals.textContent='Из смоделированных расходов: продавец — '+usd(estimate.seller)+', покупатель — '+usd(estimate.buyer)+'.';
+        root.append(totals);
+        const detail=document.createElement('p');detail.className='estimate-sub';
+        detail.textContent='Фрахт: максимум из '+usd(RATES[state.mode].minimum)+' и (вес × расстояние × тариф) = '+usd(estimate.main)+'. Погрузка, оформление и страхование рассчитаны по условным ставкам.';
+        root.append(detail);
+        const caution=document.createElement('p');caution.className='estimate-sub';
+        caution.textContent='Важно: Incoterms распределяет затраты и риски, но не определяет рыночную цену перевозки. Этот расчёт не включает стоимость товара, налоги, пошлины и индивидуальные сборы; суммы не являются котировкой.';
+        root.append(caution);
+    }
+    function changeTransport(mode){
+        state.mode=mode;
+        renderHandover();
+        if (state.mode==='sea')$('handover').value=$('cargo').value==='container'?'terminal':'onboard';
+        if(!manualDistance){
+            const r=currentRoute();
+            if(r && r.modes[mode])$('distance').value=r.modes[mode];
+        }
+        if(!manualRate){$('tariff').value=RATES[mode].tkm;}
+        if(!manuallyChangedTerm)state.term=recTerm().code;
+        renderAll();
+    }
+    routeSelect.addEventListener('change',setPresetRoute);
+    ['weight','distance','tariff','cargo-value'].forEach(id=>$(id).addEventListener('input',()=>{
+        if(id==='distance')manualDistance=true;
+        if(id==='tariff')manualRate=true;
+        renderEstimate();
+    }));
+    ['origin','destination'].forEach(id=>$(id).addEventListener('input',()=>{
+        if(currentRoute()){
+            routeSelect.value='custom';
+            $('international-row').hidden=false;
+            $('distance').value='';
+            manualDistance=true;
+        }
+        renderAll();
+    }));
+    $('delivery-goal').addEventListener('change',()=>{manuallyChangedTerm=false;state.term=recTerm().code;renderAll();});
+    $('international').addEventListener('change',renderEstimate);
+
     let toastTimer;
     function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.add('hidden'), 3500); }
     function handover() { return $('handover').value; }
@@ -76,7 +242,7 @@
                 const s = document.createElement('small');
                 s.textContent = code === 'FAS' ? 'вдоль борта' : code === 'FOB' ? 'на борту' : code === 'CFR' ? 'фрахт' : code === 'CIF' ? '+ страховка' : code === 'CIP' ? 'перевозка + полис' : code === 'DDP' ? '+ импорт' : code === 'DPU' ? '+ разгрузка' : code === 'DAP' ? 'до места' : code === 'CPT' ? 'перевозка' : code === 'FCA' ? 'перевозчик' : 'самовывоз';
                 x.append(b, s);
-                x.addEventListener('click', () => { state.term = code; renderAll(); });
+                x.addEventListener('click', () => { state.term = code; manuallyChangedTerm = true; renderAll(); });
                 root.append(x);
             });
         }
@@ -129,14 +295,13 @@
             root.append(block);
         });
     }
-    function renderAll() { chooseFallback(); uiButtons(); renderTerms(); const rec = recommendation(); const box = $('compatibility'); box.className = 'status' + (rec.type === 'warn' ? ' warn' : rec.type === 'neutral' ? ' neutral' : ''); box.replaceChildren(); const title = document.createElement('strong'); title.textContent = rec.title; box.append(title, document.createTextNode(rec.message)); details(state.term); renderComparison(); }
-    document.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => { const prev = state.mode; state.mode = btn.dataset.mode; renderHandover(); if (prev !== 'sea' && state.mode === 'sea')
-        $('handover').value = $('cargo').value === 'container' ? 'terminal' : 'onboard'; renderAll(); }));
+    function renderAll() { chooseFallback(); uiButtons(); renderTerms(); const rec = recommendation(); const box = $('compatibility'); box.className = 'status' + (rec.type === 'warn' ? ' warn' : rec.type === 'neutral' ? ' neutral' : ''); box.replaceChildren(); const title = document.createElement('strong'); title.textContent = rec.title; box.append(title, document.createTextNode(rec.message)); details(state.term); renderComparison(); renderEstimate(); }
+    document.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => changeTransport(btn.dataset.mode)));
     $('cargo').addEventListener('change', () => { if (state.mode === 'sea' && $('cargo').value === 'container')
         $('handover').value = 'terminal'; if (state.mode === 'sea' && $('cargo').value !== 'container' && $('handover').value === 'terminal')
-        $('handover').value = 'onboard'; renderAll(); });
-    $('handover').addEventListener('change', renderAll);
-    ['origin', 'destination'].forEach(id => $(id).addEventListener('input', () => details(state.term)));
+        $('handover').value = 'onboard'; if (!manuallyChangedTerm) state.term=recTerm().code; renderAll(); });
+    $('handover').addEventListener('change', () => { if (!manuallyChangedTerm) state.term=recTerm().code; renderAll(); });
+
     $('compare-term').addEventListener('change', e => { state.comparison = e.target.value; renderComparison(); });
     $('compare-open').addEventListener('click', () => { $('comparison').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
     $('copy').addEventListener('click', async () => {
@@ -158,6 +323,6 @@
         }
     });
     renderHandover();
-    renderAll();
+    setPresetRoute();
 })();
 
