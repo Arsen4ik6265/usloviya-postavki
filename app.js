@@ -38,7 +38,171 @@
         air:   {tkm: 3.50, minimum: 2500, origin: 250, destination: 250},
         multi: {tkm: 0.19, minimum: 950, origin: 240, destination: 240}
     };
+    // Ставки внутренних перевозок: рубли. Только road опирается на открытый прайс,
+    // остальные тарифы — учебные параметры, НЕ котировки перевозчиков.
+    const DOMESTIC_RATES = {
+        road: {tkm:58,minimum:15000,origin:2500,destination:2500}, // ₽/маш·км, до 20 т
+        rail: {tkm:2.2,minimum:12000,origin:3500,destination:3500}, // ₽/т·км, модель
+        air:  {tkm:220,minimum:60000,origin:8000,destination:8000}, // ₽/т·км, модель
+        sea:  {tkm:1.8,minimum:14000,origin:4800,destination:4800}, // ₽/т·км, модель
+        multi:{tkm:4.2,minimum:18000,origin:5500,destination:5500}  // ₽/т·км, модель
+    };
+    // Публичные тарифные ориентиры. Файл tariffs.json можно обновлять отдельно от кода.
+    // Нет разрешённого общедоступного API с точной актуальной ставкой по направлению.
+    // Поэтому показываем дату и источник, но НЕ называем данные «онлайн-котировкой».
+    const MARKET_FALLBACK = {"version":"2026-11-05","description":"Опубликованные ориентиры. Не поток котировок; изменение тарифов требует обновления этого файла по проверенным источникам.","routes":{"msk-spb":[{"id":"cargorun-20261101","label":"CARGO.RUN · медиана заявок","rateKm":124.4,"date":"26.10–01.11.2026","url":"https://cargorun.ru/blog/stati/stavki-na-gruzoperevozki","vat":"с НДС","kind":"Недельная медиана закрытых заявок. Тент 20 т; выборка платформы, не все сделки рынка."},{"id":"maintransport-spb-2026","label":"MainTransport · среднее по компаниям","rateKm":93,"date":"обзор 2026 года","url":"https://maintransport.ru/pro/ftl","vat":"с НДС","kind":"Обзор опубликованных предложений FTL для фуры 20 т."},{"id":"clever-spb-20260907","label":"Клевер Логистик · тариф за рейс","priceTrip":111722,"referenceKm":710,"date":"07.09.2026","url":"https://clever-logistics.ru/route/msk/spb/","vat":"НДС в таблице не уточнён","kind":"Предварительная стоимость за рейс для тента 20 т. ₽/км рассчитаны делением на дистанцию источника."}],"msk-kras":[{"id":"maintransport-kras-20261023","label":"MainTransport · среднее по компаниям","rateKm":110,"date":"23.10.2026","url":"https://maintransport.ru/transportnye-kompanii/moskva/krasnodar","vat":"НДС уточняйте","kind":"Средняя ставка FTL 20 т по опубликованным данным компаний."},{"id":"clever-kras-20260907","label":"Клевер Логистик · тариф за рейс","priceTrip":177667,"referenceKm":1368,"date":"07.09.2026","url":"https://clever-logistics.ru/route/msk/krasnodar/","vat":"НДС в таблице не уточнён","kind":"Предварительная стоимость за рейс для тента 20 т. ₽/км рассчитаны делением на дистанцию источника."}],"kazan-msk":[{"id":"maintransport-kazan-20261104","label":"MainTransport · среднее по компаниям","rateKm":86,"date":"04.11.2026","url":"https://maintransport.ru/transportnye-kompanii/kazany/moskva","vat":"НДС уточняйте","kind":"Средняя ставка FTL 20 т по опубликованным данным компаний."},{"id":"clever-kazan-20260907","label":"Клевер Логистик · тариф за рейс","priceTrip":65240,"referenceKm":817,"date":"07.09.2026","url":"https://clever-logistics.ru/route/kazan/msk/","vat":"НДС в таблице не уточнён","kind":"Предварительная стоимость за рейс для тента 20 т. ₽/км рассчитаны делением на дистанцию источника."}]}};
+    let marketCatalog = MARKET_FALLBACK;
+    let marketCatalogStatus = 'Локальный справочник (резервная копия)';
+    let marketQuoteChoice = 'auto';
+    function validMarketCatalog(data){
+        return data && typeof data === 'object' && data.routes &&
+          Object.values(data.routes).every(items => Array.isArray(items) && items.every(q =>
+            typeof q.id==='string' && typeof q.label==='string' && typeof q.url==='string' &&
+            q.url.startsWith('https://') && typeof q.date==='string' &&
+            ((Number.isFinite(Number(q.rateKm)) && Number(q.rateKm)>0) ||
+             (Number(q.priceTrip)>0 && Number(q.referenceKm)>0))));
+    }
+    async function reloadMarketCatalog(){
+        try {
+            const ctrl=new AbortController();
+            const timeout=setTimeout(()=>ctrl.abort(),5000);
+            let response;
+            try{ response=await fetch('./tariffs.json?v=9', {cache:'no-store',signal:ctrl.signal}); }
+            finally{clearTimeout(timeout);}
+            if(!response.ok)throw new Error('HTTP '+response.status);
+            const data=await response.json();
+            if(!validMarketCatalog(data)) throw new Error('Неверная структура тарифов');
+            marketCatalog=data;
+            marketCatalogStatus='Справочник проекта · редакция '+(data.version||'без даты');
+            if(!manualRate){marketQuoteChoice='auto';setDefaultRate();}
+            renderEstimate();
+        }catch(error){
+            marketCatalogStatus='Локальная копия тарифов; внешний файл недоступен';
+            console.warn('Не удалось загрузить справочник тарифов:',error);
+            renderEstimate();
+        }
+    }
+    function roadTariffRoute(mode=state.mode){
+        if(!scopeDomestic() || mode!=='road' || $('cargo').value!=='general') return null;
+        return routeSelect.value;
+    }
+    function marketQuotesForRoute(mode=state.mode){
+        const id=roadTariffRoute(mode);
+        const arr=id && marketCatalog.routes[id];
+        return Array.isArray(arr)?arr:[];
+    }
+    function quoteRate(q){
+        return q && Number(q.rateKm)>0 ? Number(q.rateKm) :
+          q && Number(q.priceTrip)>0 && Number(q.referenceKm)>0 ? Number(q.priceTrip)/Number(q.referenceKm) : null;
+    }
+    function selectedMarketQuote(mode=state.mode){
+        if(marketQuoteChoice==='manual')return null;
+        const options=marketQuotesForRoute(mode);
+        return options.find(q=>q.id===marketQuoteChoice) || options[0] || null;
+    }
+    function roadRateValue(mode=state.mode){
+        const q=selectedMarketQuote(mode);
+        return q?quoteRate(q):null;
+    }
+    function marketQuoteSummary(mode=state.mode){
+        const q=selectedMarketQuote(mode);
+        if(!q) return null;
+        const r=quoteRate(q);
+        return q.label+' · '+q.date+' · '+r.toLocaleString('ru-RU',{maximumFractionDigits:2})+' ₽/маш·км';
+    }
+    function populateMarketOptions(){
+        const wrap=$('market-rate-controls');
+        const visible=scopeDomestic() && state.mode==='road';
+        wrap.hidden=!visible;
+        if(!visible) return;
+        const options=marketQuotesForRoute();
+        const sel=$('market-quote');
+        sel.replaceChildren();
+        options.forEach(q=>{
+            const option=document.createElement('option');
+            option.value=q.id;
+            option.textContent=q.label+' · '+q.date;
+            sel.append(option);
+        });
+        const manual=document.createElement('option');manual.value='manual';manual.textContent='Своя ставка, полученная от перевозчика';sel.append(manual);
+        const selected=selectedMarketQuote();
+        sel.value=marketQuoteChoice==='manual'?'manual':(selected?selected.id:'manual');
+        $('market-data-status').textContent=marketCatalogStatus;
+        $('road-extra').disabled=false;
+    }
+    function updateTariffUi(){
+        $('tariff-label').textContent='Расчётная ставка, '+tariffUnits();
+        $('cargo-value-label').textContent='Стоимость груза, '+(scopeDomestic()?'₽':'USD');
+        populateMarketOptions();
+        const info=$('rate-source');
+        const link=$('public-rate-link');
+        const q=selectedMarketQuote();
+        if(scopeDomestic() && state.mode==='road'){
+            if(q){
+                const perKm=quoteRate(q);
+                const basis=q.priceTrip?'Опубликовано '+rub(Number(q.priceTrip))+' за '+q.referenceKm+' км; эквивалент '+perKm.toLocaleString('ru-RU',{maximumFractionDigits:2})+' ₽/км. ':'Опубликованная ставка '+perKm.toLocaleString('ru-RU',{maximumFractionDigits:2})+' ₽/км. ';
+                info.textContent=q.label+' · '+q.date+' · '+basis+(q.vat||'НДС уточняйте')+'. '+(q.kind||'')+' '+(calcNumber('weight')>20?'Свыше 20 т модель делит груз на несколько машин: согласуйте применимость с перевозчиком. ':'')+'Цена перевозчика на дату заказа может отличаться.';
+                link.href=q.url;
+                link.hidden=false;
+                link.textContent='Открыть источник ставки ↗';
+            }else{
+                info.textContent=marketQuoteChoice==='manual' && $('tariff').value.trim()
+                  ?'Используется ваша ставка, введённая вручную. Она не проверялась по рынку.'
+                  :($('cargo').value==='general'?'Для этого направления в справочнике нет опубликованной ставки тента 20 т. Укажите ставку по коммерческому предложению.':'Для зерна, цистерн и контейнеров ставки обычной тентованной фуры не подходят. Запросите ставку подходящего транспорта и введите её вручную.');
+                link.hidden=true;
+            }
+        } else {
+            info.textContent='Текущий тариф — учебное допущение, а не данные перевозчика. Ставку можно изменить вручную.';
+            link.hidden=true;
+        }
+    }
     const usd = n => new Intl.NumberFormat('ru-RU',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
+    const rub = n => new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:0}).format(n);
+    const money = n => scopeDomestic()?rub(n):usd(n);
+    let usdRub = null, fxDate = '', fxKind = 'none', fxRequest = false;
+    const fxSub = n => usdRub ? (scopeDomestic()?usd(n/usdRub):rub(n*usdRub)) : null;
+    const rateModel = mode => scopeDomestic()?DOMESTIC_RATES[mode]:RATES[mode];
+    const defaultTariff = (mode,weight) => scopeDomestic() && mode==='road' ?
+        roadRateValue(mode) : rateModel(mode).tkm;
+    const truckCount = weight => scopeDomestic() && weight>20 ? Math.ceil(weight/20):1;
+    const tariffUnits = () => scopeDomestic()?(state.mode==='road'?'₽/маш·км':'₽/т·км'):'USD/т·км';
+    function updateFxUi(){
+        const status=$('fx-status');
+        if(fxKind==='live'&&usdRub) status.textContent='Курс из неофициального JSON-зеркала данных ЦБ РФ: 1 USD = '+usdRub.toLocaleString('ru-RU',{maximumFractionDigits:4})+' ₽. Дата курса: '+fxDate+'. Обновляется при открытии страницы.';
+        else if(fxKind==='manual'&&usdRub) status.textContent='Введён курс вручную. Пересчёт справочный, без учёта банковской комиссии.';
+        else if(fxRequest) status.textContent='Загружаем курс USD/RUB…';
+        else status.textContent='Курс недоступен. Рублёвые суммы в режиме ВЭД появятся после загрузки или ручного ввода курса.';
+        $('fx-refresh').disabled=fxRequest;
+    }
+    async function refreshFx(){
+        if(fxRequest)return;
+        fxRequest=true;updateFxUi();
+        const abort=new AbortController();
+        const timeout=setTimeout(()=>abort.abort(),8500);
+        try {
+            const r=await fetch('https://www.cbr-xml-daily.com/daily_json.js',{signal:abort.signal,cache:'no-store'});
+            if(!r.ok)throw new Error('HTTP '+r.status);
+            const data=await r.json();
+            const nominal=Number(data.Valute?.USD?.Nominal || 1);
+            const raw=Number(data.Valute?.USD?.Value);
+            const value=raw/nominal;
+            if(!Number.isFinite(value)||value<10||value>1000)throw new Error('Некорректный курс');
+            if(fxKind!=='manual'){
+                usdRub=value;fxDate=(data.Date||'').slice(0,10)||'не указана';fxKind='live';
+                $('fx-manual').value=value.toFixed(4);
+            }
+        }catch(e){
+            // Курс не выдумываем: при отсутствии данных пересчёт просто не отображается.
+            console.warn('Курс USD/RUB недоступен:',e);
+        }finally{
+            clearTimeout(timeout);fxRequest=false;updateFxUi();renderEstimate();
+        }
+    }
+    function setDefaultRate(){
+        if(!manualRate) { const next=defaultTariff(state.mode,calcNumber('weight')); $('tariff').value=next ? String(Number(next.toFixed(3))) : ''; }
+        updateTariffUi();
+    }
+
     const routeSelect = $('route-preset');
     const scopeDomestic = () => state.scope === 'domestic';
     const DOMESTIC_GOALS = {
@@ -106,7 +270,15 @@
     function setScope(scope,preferred) {
         if(scope!== 'domestic' && scope!=='international')return;
         invalidateRoadDistance();
+        const changed=state.scope!==scope;
         state.scope=scope;
+        if(changed){
+            // Стоимость груза вводится в валюте текущего режима — не смешиваем валюты.
+            $('cargo-value').value=scopeDomestic()?'3000000':'30000';
+            manualRate=false;
+            marketQuoteChoice='auto';
+            $('cargo').value=scopeDomestic()?'general':'bulk';
+        }
         updateScopeUi();
         rebuildRouteOptions(preferred);
         setPresetRoute();
@@ -347,12 +519,14 @@
     }
     function setPresetRoute(){
         invalidateRoadDistance();
+        $('road-extra').value='0';
         const r=currentRoute();
         if (!r) {
             $('origin').value='';$('destination').value='';
             $('distance').value = '';
             manualDistance = true;
             manualDistanceKey = roadKey();
+            manualRate=false;marketQuoteChoice='auto';setDefaultRate();
         }
         if (r){
             $('origin').value=r.from;$('destination').value=r.to;
@@ -363,9 +537,9 @@
                 if(state.mode==='sea' && previousMode!=='sea')
                     $('handover').value=$('cargo').value==='container'?'terminal':'onboard';
             }
-            manualDistance=false; manualDistanceKey=null; manualRate=false;
+            manualDistance=false; manualDistanceKey=null; manualRate=false;marketQuoteChoice='auto';
             $('distance').value=r.modes[state.mode];
-            $('tariff').value=RATES[state.mode].tkm;
+            setDefaultRate();
             manuallyChangedTerm=false;
             state.term=recTerm().code;
         }
@@ -383,22 +557,27 @@
         const mode=scenario ? scenario.mode : state.mode;
         const cargo=scenario ? scenario.cargo : $('cargo').value;
         if (![weight,distance,rate].every(n=>Number.isFinite(n)&&n>0) || !Number.isFinite(declaredValue) || declaredValue<0) return null;
-        const params=RATES[mode];
+        const params=rateModel(mode);
         const intl=!scopeDomestic();
         const goal=$('delivery-goal').value;
-        const main=Math.max(params.minimum,weight*distance*rate);
+        // Внутренние авто — за машино-километр; НЕ умножать тариф на тонны.
+        // Если груз >20 т: условно несколько фур по одинаковой ставке.
+        const main=Math.max(params.minimum,(scopeDomestic()&&mode==='road')?
+            distance*rate*truckCount(weight):weight*distance*rate);
         const handlingFactor=cargo==='container'?1.25:cargo==='general'?1.15:1;
-        const origin=(params.origin+weight*4)*handlingFactor;
-        const destination=(params.destination+weight*4)*handlingFactor;
+        const origin=(!intl&&mode==='road')?0:(params.origin+weight*(intl?4:35))*handlingFactor;
+        const destination=(!intl&&mode==='road')?0:(params.destination+weight*(intl?4:35))*handlingFactor;
+        const roadExtra=(!intl&&mode==='road')?Math.max(0,calcNumber('road-extra')):0;
         const customs=intl && $('customs-applicable').checked;
         const exportDoc=customs?180:0;
         const importAdmin=customs?220:0;
         const insurance=intl
           ? ((term==='CIF'||term==='CIP')?Math.max(70,declaredValue*(term==='CIP'?0.006:0.003)):0)
-          : (goal==='insured'?Math.max(70,declaredValue*.003):0);
+          : (goal==='insured'?Math.max(500,declaredValue*.003):0);
         const items=[
             {name:'Погрузка / обработка при отправлении',price:origin,owner:intl?(term==='EXW'?B:A):(goal==='buyer'?B:A)},
             {name:'Основная перевозка',price:main,owner:intl?t.freight:(goal==='buyer'?B:A)},
+            ...(roadExtra>0?[{name:'Дополнительные услуги (введены вручную)',price:roadExtra,owner:goal==='buyer'?B:A}]:[]),
             ...(customs?[{name:'Услуги по экспортному оформлению (условно)',price:exportDoc,owner:t.export}]:[]),
             {name:'Обработка / разгрузка в пункте назначения',price:destination,owner:intl?t.unloading:(goal==='door'?A:B)},
             ...(customs?[{name:'Услуги по импортному оформлению (без пошлин)',price:importAdmin,owner:t.import}]:[]),
@@ -412,14 +591,15 @@
     // V6: сравнение ограничено явно описанными учебными сценариями.
     // Не предполагает фактической доступности морского, железнодорожного или авиационного сервиса.
     const DELIVERY_MODEL = {
-        road: {kmPerDay: 500, handlingDays: 0.5},
-        rail: {kmPerDay: 650, handlingDays: 1.5},
-        sea: {kmPerDay: 410, handlingDays: 2.5},
-        air: {kmPerDay: 5200, handlingDays: 0.5},
-        multi: {kmPerDay: 480, handlingDays: 2.0}
+        // Все сроки — диапазоны для модели "склад → склад", а не опубликованные расписания.
+        road: {kmPerDay: 550, handlingDays: .8, uncertaintyDays: 1},
+        rail: {kmPerDay: 550, handlingDays: 2.5, uncertaintyDays: 2},
+        sea: {kmPerDay: 430, handlingDays: 4, uncertaintyDays: 4},
+        air: {kmPerDay: 6000, handlingDays: 2.0, uncertaintyDays: 1},
+        multi: {kmPerDay: 470, handlingDays: 3.5, uncertaintyDays: 2}
     };
     const distanceNum = n => new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(n);
-    const daysLabel = n => '~' + new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(n) + ' дн.';
+    const daysLabel = row => (typeof row==='number'?'~'+row+' дн.':'~'+row.daysMin+'–'+row.daysMax+' дн.');
     const goalLabel = {buyer:'Перевозку организует покупатель',seller:'Перевозку организует продавец',insured:'Продавец оплачивает перевозку и страхование',door:'Доставка до места назначения'};
     const scopeGoalLabel = goal => scopeDomestic() ? DOMESTIC_GOALS[goal].title : goalLabel[goal];
     function recForMode(mode) {
@@ -454,7 +634,7 @@
                 distance=route?.modes[mode];
             }
             if(!Number.isFinite(distance) || distance<=0) continue;
-            const rate = mode===state.mode ? calcNumber('tariff') : RATES[mode].tkm;
+            const rate = mode===state.mode ? calcNumber('tariff') : defaultTariff(mode,weight);
             if(!Number.isFinite(rate) || rate<=0)continue;
             const recommendedTerm=scopeDomestic()?'':recForMode(mode);
             // Активная карточка всегда совпадает по стоимости с текущим калькулятором.
@@ -465,11 +645,14 @@
             const roadResult=mode==='road' && (roadDistance?.key===roadKey()?roadDistance:roadCache.get(roadKey()));
             // При ручном исправлении километража время старого маршрута не применяется.
             const osrm=roadResult && roadResult.km===distance ? roadResult : null;
-            // OSRM duration represents pure drive time, not trucking ETA. Eight driving hours/day is a MODEL assumption.
-            const routeDays=osrm ? osrm.seconds/3600/8 : distance/daily.kmPerDay;
+            // Чистое время OSRM — не срок доставки. Используем 9 ч движения/день,
+            // плюс обработка, резерв и возможные ограничения. Другие виды — модель.
+            const routeDays=osrm ? osrm.seconds/3600/9 : distance/daily.kmPerDay;
             const rawDays=routeDays+daily.handlingDays;
-            const days=Math.max(.5,Math.ceil(rawDays*2)/2);
-            rows.push({mode,name:MODES[mode],distance,distSource,rate,term,recommendedTerm,total:estimate.total,freight:estimate.main,days,sourceTime:osrm?'Движение OSRM + учебные остановки':'Учебная скорость + обработка'});
+            const daysMin=Math.max(1,Math.ceil(rawDays));
+            const daysMax=daysMin+daily.uncertaintyDays;
+            const days=(daysMin+daysMax)/2; // Только для ранжирования и графика.
+            rows.push({mode,name:MODES[mode],distance,distSource,rate,term,recommendedTerm,total:estimate.total,freight:estimate.main,days,daysMin,daysMax,sourceTime:osrm?'Движение OSRM + расчётные этапы':'Расчётная скорость + обработка и резерв'});
         }
         return rows;
     }
@@ -498,27 +681,29 @@
             root.append(empty);return;
         }
         const summary=document.createElement('p');summary.className='mode-compare-disclaimer';
-        summary.textContent=scenarioRoute ? (scopeDomestic()?'Сравнение внутренних перевозок по учебным сценариям без внешнеторговых процедур. Ставки и сроки не подтверждены перевозчиками.':'Сравнение международных перевозок по учебным сценариям. Для альтернатив показан рекомендуемый Incoterms. Ставки и сроки не подтверждены перевозчиками.') : 'Для своего маршрута показан только выбранный вид транспорта. Для сравнения нескольких видов выберите маршрут из примеров.';
+        summary.textContent=scenarioRoute ? (scopeDomestic()?'Россия: только для тентованных автоперевозок приведены проверяемые опубликованные ориентиры с датой; остальные виды транспорта — учебная модель. Сроки не подтверждены расписаниями.':'ВЭД: затраты в USD, курс ЦБ РФ — для пересчёта в рубли. Ставки и сроки доставки не подтверждены перевозчиками.') : 'Для своего маршрута показан только выбранный вид транспорта. Для сравнения нескольких видов выберите маршрут из примеров.';
         root.append(summary);
         if(rows.length>1){
             const winners=transportWinners(rows);
             const panels=document.createElement('div');panels.className='mode-winners';
             [
-                ['Минимальные расходы',winners.cheapest,usd(winners.cheapest.total)],
-                ['Самый быстрый по модели',winners.fastest,daysLabel(winners.fastest.days)],
-                ['Баланс 50/50',winners.balanced,usd(winners.balanced.total)+' · '+daysLabel(winners.balanced.days)]
+                ['Минимальные расходы (модель)',winners.cheapest,money(winners.cheapest.total)],
+                ['Самый быстрый по модели',winners.fastest,daysLabel(winners.fastest)],
+                ['Баланс 50/50 (модель)',winners.balanced,money(winners.balanced.total)+' · '+daysLabel(winners.balanced)]
             ].forEach(([label,item,value])=>{
                 const card=document.createElement('div');card.className='mode-winner';
                 const caption=document.createElement('span');caption.className='mode-winner-label';caption.textContent=label;
                 const name=document.createElement('strong');name.textContent=item.name;
-                const result=document.createElement('span');result.className='mode-winner-value';result.textContent=value;
+                const result=document.createElement('span');result.className='mode-winner-value';
+                const converted=label==='Самый быстрый по модели'?null:fxSub(item.total);
+                result.textContent=value+(converted?' · '+converted:'');
                 card.append(caption,name,result);panels.append(card);
             });
             root.append(panels);
         }
         const plot=document.createElement('div');plot.className='mode-chart';
         const head=document.createElement('div');head.className='mode-chart-head';
-        const headTitle=document.createElement('h3');headTitle.textContent='Сравнение вариантов';
+        const headTitle=document.createElement('h3');headTitle.textContent='Сравнение сценариев (модель)';
         const switches=document.createElement('div');switches.className='mode-chart-tabs';switches.setAttribute('role','group');switches.setAttribute('aria-label','Что показать на графике');
         [['cost','Стоимость'],['time','Срок']].forEach(([value,label])=>{
             const button=document.createElement('button');button.type='button';button.textContent=label;
@@ -532,7 +717,7 @@
             const row=document.createElement('div');row.className='mode-chart-row';
             const line=document.createElement('div');line.className='mode-chart-line';
             const n=document.createElement('span');n.className='mode-chart-label';n.textContent=item.name;
-            const v=document.createElement('strong');v.className='mode-chart-value';v.textContent=transportChartMetric==='cost'?usd(item.total):daysLabel(item.days);
+            const v=document.createElement('strong');v.className='mode-chart-value';v.textContent=transportChartMetric==='cost'?money(item.total):daysLabel(item);
             line.append(n,v);
             const track=document.createElement('div');track.className='mode-chart-track';
             const fill=document.createElement('div');fill.className='mode-chart-fill';
@@ -550,11 +735,12 @@
             const flag=document.createElement('span');flag.className='mode-option-tag';flag.textContent=item.mode===state.mode?'Выбранный':'Учебная альтернатива';
             top.append(title,flag);
             const amounts=document.createElement('div');amounts.className='mode-option-amounts';
-            const total=document.createElement('b');total.textContent=usd(item.total);
-            const eta=document.createElement('span');eta.textContent=daysLabel(item.days);
+            const total=document.createElement('b');total.textContent=money(item.total);
+            const converted=fxSub(item.total);if(converted)total.title='Справочно: '+converted;
+            const eta=document.createElement('span');eta.textContent=daysLabel(item);
             amounts.append(total,eta);
             const details=document.createElement('dl');details.className='mode-option-facts';
-            [['Расстояние',distanceNum(item.distance)+' км'],['Основная перевозка',usd(item.freight)],...(scopeDomestic()? [['Условия доставки',scopeGoalLabel($('delivery-goal').value)]] : [['Базис в расчёте',item.term],['Рекомендация Incoterms',item.recommendedTerm]]),['Источник расстояния',item.distSource]].forEach(([key,value],i)=>{
+            [['Расстояние',distanceNum(item.distance)+' км'],['Основная перевозка',money(item.freight)],...(scopeDomestic()? [['Условия доставки',scopeGoalLabel($('delivery-goal').value)]] : [['Базис в расчёте',item.term],['Рекомендация Incoterms',item.recommendedTerm]]),['Источник расстояния',item.distSource],['Источник ставки',scopeDomestic()&&item.mode==='road'?(marketQuoteSummary()||'Ручной ввод, не проверено'):'Учебный тариф'],['Срок',daysLabel(item)+' · модель'],...(fxSub(item.total)?[['В другой валюте',fxSub(item.total)]]:[])].forEach(([key,value],i)=>{
                 const wrap=document.createElement('div'),k=document.createElement('dt'),v=document.createElement('dd');
                 k.textContent=key;v.textContent=value;wrap.append(k,v);details.append(wrap);
             });
@@ -571,7 +757,7 @@
         });
         root.append(cards);
         const foot=document.createElement('p');foot.className='mode-compare-disclaimer';
-        foot.textContent='Принцип: стоимость = учебный расчёт (вес × расстояние × тариф + обработка'+(scopeDomestic()?'':' + выбранные услуги таможенного оформления')+'; страхование — только когда оно задано в схеме). Срок — условная скорость и время обработки. Для автодорог OSRM показывает время чистого движения; для срока доставки модель условно считает 8 часов вождения в день. Нет данных о расписаниях, работе портов, наличии рейсов, ограничениях грузовиков и границах. Баланс — равный вес нормализованных стоимости и срока внутри показанных вариантов.';
+        foot.textContent='Принцип: внутренняя автоставка — рубли за машино-километр (НЕ за тонно-километр). Другие ставки — модель. ВЭД — USD/т·км. Срок — диапазон, включающий обработку и резерв; OSRM определяет только чистое движение, для авто приняты 9 часов движения в день. Данные о реальных рейсах, границах, наличии вагонов, транспортных ограничениях и складских слотах отсутствуют. Рейтинг и баланс зависят от введённых допущений.';
         root.append(foot);
     }
 
@@ -595,13 +781,14 @@
         );
     }
     function renderEstimate(){
+        updateTariffUi();
         const root=$('estimate-result');
         root.replaceChildren();
         const route=currentRoute();
         const rec=scopeDomestic()?null:recTerm();
         if(!hasValidInput()){
             const error=document.createElement('div');error.className='estimate-empty';
-            error.textContent='Укажите положительные вес, расстояние и тариф. Для своего маршрута расстояние нужно ввести самостоятельно. Стоимость груза не должна быть отрицательной.';
+            error.textContent='Укажите положительные вес, расстояние и ставку. Если опубликованных тарифов для груза или маршрута нет, внесите полученную от перевозчика ставку вручную. Стоимость груза не должна быть отрицательной.';
             root.append(error);renderTransportComparison();return;
         }
         const estimate=estimateValues(state.term);
@@ -620,24 +807,36 @@
             actions.append(apply);top.append(actions);
         }
         root.append(top);
-        const sum=document.createElement('div');sum.className='estimate-value';sum.textContent=usd(estimate.total);
-        const sumLabel=document.createElement('p');sumLabel.className='estimate-sub';sumLabel.textContent=scopeDomestic()?'Сумма условных расходов по внутренней перевозке, без таможенных статей':'Сумма моделируемых транспортных и сопутствующих расходов · выбран базис '+state.term;
-        const range=document.createElement('p');range.className='estimate-sub';range.textContent='Иллюстративный диапазон ±25%: '+usd(estimate.total*.75)+' — '+usd(estimate.total*1.25)+' (не статистическая оценка).';
-        root.append(sum,sumLabel,range);
+        const sum=document.createElement('div');sum.className='estimate-value';sum.textContent=money(estimate.total);
+        const subFx=fxSub(estimate.total);
+        if(subFx){const converted=document.createElement('div');converted.className='estimate-converted';converted.textContent='Справочно: '+subFx;root.append(converted);}
+        const sumLabel=document.createElement('p');sumLabel.className='estimate-sub';sumLabel.textContent=scopeDomestic()?(state.mode==='road'?'Ориентировочная стоимость по опубликованной/введённой ставке, без неуказанных услуг и таможенных статей':'Сумма условных расходов по внутренней перевозке, без таможенных статей'):'Сумма моделируемых транспортных и сопутствующих расходов · выбран базис '+state.term;
+        const range=document.createElement('p');range.className='estimate-sub';
+        const marketChoices=marketQuotesForRoute();
+        if(scopeDomestic() && state.mode==='road'){
+          const quotes=marketChoices.map(q=>quoteRate(q)).filter(n=>Number.isFinite(n)&&n>0);
+          if(quotes.length>=2){
+            const distance=calcNumber('distance'), trucks=truckCount(calcNumber('weight'));
+            range.textContent='Диапазон опубликованных ориентиров по этому направлению: '+money(Math.min(...quotes)*distance*trucks)+' — '+money(Math.max(...quotes)*distance*trucks)+' за основную перевозку (без дополнительных услуг). Разные источники и условия; не прогнозный интервал.';
+          } else range.textContent='Цена основана на выбранной ставке ₽/км. Она не гарантирует цену рейса; актуальный тариф подтвердит перевозчик.';
+        } else range.textContent='Иллюстративный диапазон ±25%: '+money(estimate.total*.75)+' — '+money(estimate.total*1.25)+' (не статистическая оценка).';
+        root.append(sum);if(subFx){const x=root.querySelector('.estimate-converted');if(x)root.append(x);}root.append(sumLabel,range);
         const table=document.createElement('table');table.className='estimate-table';
         const thead=document.createElement('thead');thead.innerHTML='<tr><th>Статья</th><th>За счёт кого</th><th>Сумма</th></tr>';
         const body=document.createElement('tbody');
         estimate.items.forEach(item=>{
             const tr=document.createElement('tr');
-            [item.name, item.owner===A?(scopeDomestic()?'Отправитель':'Продавец'):item.owner===B?(scopeDomestic()?'Получатель':'Покупатель'):'По договорённости',usd(item.price)].forEach(value=>{const td=document.createElement('td');td.textContent=value;tr.append(td)});
+            [item.name, item.owner===A?(scopeDomestic()?'Отправитель':'Продавец'):item.owner===B?(scopeDomestic()?'Получатель':'Покупатель'):'По договорённости',money(item.price)].forEach(value=>{const td=document.createElement('td');td.textContent=value;tr.append(td)});
             body.append(tr);
         });
         table.append(thead,body);root.append(table);
         const totals=document.createElement('p');totals.className='estimate-totals';
-        totals.textContent=scopeDomestic()?'По учебной схеме: отправитель — '+usd(estimate.seller)+', получатель — '+usd(estimate.buyer)+'.':'По учебной схеме: продавец — '+usd(estimate.seller)+', покупатель — '+usd(estimate.buyer)+'.';
+        totals.textContent=scopeDomestic()?'По учебной схеме: отправитель — '+money(estimate.seller)+', получатель — '+money(estimate.buyer)+'.':'По учебной схеме: продавец — '+money(estimate.seller)+', покупатель — '+money(estimate.buyer)+'.';
         root.append(totals);
         const detail=document.createElement('p');detail.className='estimate-sub';
-        detail.textContent='Основная перевозка: максимум из '+usd(RATES[state.mode].minimum)+' и (вес × расстояние × тариф) = '+usd(estimate.main)+'. Остальные статьи рассчитаны по учебным ставкам.';
+        detail.textContent=scopeDomestic()&&state.mode==='road'
+         ? 'Автоперевозка: расстояние × опубликованная/введённая ставка ₽/маш·км'+(calcNumber('weight')>20?' × '+truckCount(calcNumber('weight'))+' расчётных машин':'')+' (не менее '+money(DOMESTIC_RATES.road.minimum)+') = '+money(estimate.main)+'. Дополнительные услуги включаются только если указаны вручную.'
+         : 'Основная перевозка: максимум из '+money(rateModel(state.mode).minimum)+' и (вес × расстояние × ставка) = '+money(estimate.main)+'. Остальные статьи рассчитаны по учебным ставкам.';
         root.append(detail);
         const caution=document.createElement('p');caution.className='estimate-sub';
         caution.textContent=scopeDomestic()?'Внутренняя перевозка: таможенные расходы не применяются. Распределение расходов показано как пример и определяется договором. НДС, стоимость товара и специальные сборы не учтены; суммы не являются котировкой.':'ВЭД: Incoterms распределяет задачи, затраты и риски, но не определяет рыночную цену перевозки. Таможенные пошлины, налоги, стоимость товара и специальные сборы не включены; суммы не являются котировкой.';
@@ -657,16 +856,24 @@
         if (state.mode==='sea')$('handover').value=$('cargo').value==='container'?'terminal':'onboard';
         const r=currentRoute();
         $('distance').value = (r && r.modes[mode]) ? r.modes[mode] : '';
-        if(!manualRate){$('tariff').value=RATES[mode].tkm;}
+        manualRate=false;marketQuoteChoice='auto';setDefaultRate();
         if(!manuallyChangedTerm)state.term=recTerm().code;
         updateDistanceHint();
         renderAll();
         scheduleRoadLookup();
     }
     routeSelect.addEventListener('change',setPresetRoute);
+    $('market-quote').addEventListener('change',e=>{
+        marketQuoteChoice=e.target.value;
+        manualRate=marketQuoteChoice==='manual';
+        if(!manualRate)setDefaultRate();
+        renderEstimate();
+    });
+    $('road-extra').addEventListener('input', renderEstimate);
     ['weight','distance','tariff','cargo-value'].forEach(id=>$(id).addEventListener('input',()=>{
         if(id==='distance'){invalidateRoadDistance();manualDistance=true;manualDistanceKey=roadKey();updateDistanceHint();updateRoadControls();}
-        if(id==='tariff')manualRate=true;
+        if(id==='tariff'){manualRate=true;marketQuoteChoice='manual';}
+        if(id==='weight')setDefaultRate();
         renderEstimate();
     }));
     ['origin','destination'].forEach(id=>$(id).addEventListener('input',()=>{
@@ -695,9 +902,10 @@
                 manualDistance=false;
                 manualDistanceKey=null;
             }
-            if(!manualRate){$('tariff').value=RATES[state.mode].tkm;}
+            manualRate=false;marketQuoteChoice='auto';setDefaultRate();
         }else{
             routeSelect.value='custom';
+            manualRate=false;marketQuoteChoice='auto';setDefaultRate();
             // Для своего маршрута тип поставки задаётся переключателем выше.
             if(!manualDistance){$('distance').value='';}
         }
@@ -822,7 +1030,7 @@
     }
     function renderAll() { updateRoadControls(); uiButtons(); if(!scopeDomestic()){ chooseFallback();renderTerms();const rec=recommendation();const box=$('compatibility');box.className='status'+(rec.type==='warn'?' warn':rec.type==='neutral'?' neutral':'');box.replaceChildren();const title=document.createElement('strong');title.textContent=rec.title;box.append(title,document.createTextNode(rec.message));details(state.term);renderComparison();}renderEstimate(); }
     document.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => changeTransport(btn.dataset.mode)));
-    $('cargo').addEventListener('change', () => { if (state.mode === 'sea' && $('cargo').value === 'container')
+    $('cargo').addEventListener('change', () => {manualRate=false;marketQuoteChoice='auto';setDefaultRate(); if (state.mode === 'sea' && $('cargo').value === 'container')
         $('handover').value = 'terminal'; if (state.mode === 'sea' && $('cargo').value !== 'container' && $('handover').value === 'terminal')
         $('handover').value = 'onboard'; if (!manuallyChangedTerm) state.term=recTerm().code; renderAll(); });
     $('handover').addEventListener('change', () => { if (!manuallyChangedTerm) state.term=recTerm().code; renderAll(); });
@@ -832,9 +1040,9 @@
     $('copy-domestic').addEventListener('click', async () => {
         const estimate=estimateValues('');
         if(!estimate){toast('Заполните параметры расчёта');return;}
-        const rows=estimate.items.map(x=>x.name+': '+usd(x.price)+' ('+(x.owner===A?'отправитель':'получатель')+')').join('\n');
+        const rows=estimate.items.map(x=>x.name+': '+money(x.price)+' ('+(x.owner===A?'отправитель':'получатель')+')').join('\n');
         const report='Внутренняя перевозка\n'+$('origin').value+' → '+$('destination').value+'\n'+
-          MODES[state.mode]+'\nУсловия: '+DOMESTIC_GOALS[$('delivery-goal').value].title+'\n'+rows+'\nИтого: '+usd(estimate.total)+'\nУчебный расчёт, без таможенных статей. Распределение обязанностей определяется договором.';
+          MODES[state.mode]+'\nУсловия: '+DOMESTIC_GOALS[$('delivery-goal').value].title+'\n'+rows+'\nИтого: '+money(estimate.total)+'\nУчебный расчёт, без таможенных статей. Распределение обязанностей определяется договором.';
         try { await navigator.clipboard.writeText(report);toast('Расчёт скопирован'); }
         catch(e){ const t=document.createElement('textarea');t.value=report;t.style.cssText='position:fixed;top:0;opacity:0';document.body.append(t);t.select();const ok=document.execCommand('copy');t.remove();toast(ok?'Расчёт скопирован':'Копирование недоступно'); }
     });
@@ -856,7 +1064,16 @@
             toast(ok ? 'Краткий отчёт скопирован' : 'Копирование недоступно — проверьте разрешения браузера');
         }
     });
+    $('fx-refresh').addEventListener('click',refreshFx);
+    $('fx-manual').addEventListener('input',()=>{
+        const raw=Number($('fx-manual').value.replace(',','.'));
+        if(Number.isFinite(raw)&&raw>=10&&raw<=1000){usdRub=raw;fxKind='manual';}
+        else {usdRub=null;fxKind='none';}
+        updateFxUi();renderEstimate();
+    });
     renderHandover();
     setScope('domestic');
+    refreshFx();
+    reloadMarketCatalog();
 })();
 

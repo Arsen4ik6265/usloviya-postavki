@@ -1134,3 +1134,27 @@ body.scope-domestic #cargo-field{grid-column:1/-1}
  .scope-tabs button{padding:11px 5px;font-size:12px}
  .domestic-summary{padding:13px}
 }
+
+/* Версия 8: открытый источник цены и справочный курс. Без боковой прокрутки на телефоне. */
+.market-panel{background:#f5faf9;border:1px solid #d2e4e0;border-radius:9px;margin:18px 0 14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.market-heading{font-size:14px;font-weight:750;color:#123c3a}
+.market-note{font-size:12px;line-height:1.55;color:#5d6f7e;margin:0}
+.market-source-link{font-size:12px;line-height:1.45;color:#0a7669;font-weight:700;overflow-wrap:anywhere}
+.fx-line{display:flex;align-items:end;gap:10px;min-width:0;flex-wrap:wrap}
+.fx-rate-field{flex:1 1 180px;min-width:0;font-size:12px}
+.fx-rate-field .input{width:100%;font-size:16px;min-height:44px}
+.fx-refresh{padding:12px 14px;min-height:44px;flex:0 0 auto;border-radius:8px;border:1px solid #178577;color:#086d61;background:#fff;font-weight:700;font-size:12px}
+.fx-refresh:disabled{opacity:.5}
+.estimate-converted{font-size:15px;color:#577d77;margin:5px 0 9px;font-weight:650}
+@media(max-width:580px){.market-panel{padding:12px}.fx-line{align-items:stretch}.fx-refresh{width:100%}}
+
+/* V9: выбор источника ставки и явные дополнительные расходы */
+.market-rate-controls{display:flex;flex-direction:column;gap:11px;padding:12px;background:#fff;border:1px solid #dcebe8;border-radius:8px;min-width:0}
+.market-rate-controls[hidden]{display:none}
+.market-rate-controls .field{font-size:12px;min-width:0;gap:7px}
+.market-rate-controls .input{width:100%;font-size:15px;min-height:46px}
+.market-rate-controls p{margin:0}
+.market-panel a{overflow-wrap:anywhere}
+@media(max-width:580px){.market-rate-controls{padding:10px}.market-rate-controls .input{font-size:16px}}
+
+body.scope-domestic .fx-line,body.scope-domestic #fx-status,body.scope-domestic .fx-explainer{display:none}

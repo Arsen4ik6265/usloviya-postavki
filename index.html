@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <meta name="description" content="Условия поставки: сравнение перевозок внутри страны и для ВЭД, учебный расчёт расходов, Incoterms 2020.">
   <title>Условия поставки — логистика по России и ВЭД</title>
-  <link rel="stylesheet" href="./style.css?v=7">
+  <link rel="stylesheet" href="./style.css?v=9">
 </head>
 <body>
 <header>
@@ -69,7 +69,7 @@
       </div>
       <div class="frow">
         <label class="field" id="cargo-field">Тип груза<select class="input" id="cargo">
-          <option value="bulk">Зерно / навалочный</option><option value="container">Контейнерный</option><option value="general">Штучный груз (паллеты, оборудование)</option><option value="liquid">Наливной</option>
+          <option value="bulk">Зерно / навалочный</option><option value="container">Контейнерный</option><option value="general" selected>Штучный груз (паллеты, оборудование)</option><option value="liquid">Наливной</option>
         </select></label>
         <label class="field" id="handover-field">Место передачи перевозчику<select class="input" id="handover">
           <option value="onboard">На борту судна</option><option value="alongside">Вдоль борта судна</option><option value="terminal">Перевозчику / терминалу</option>
@@ -78,13 +78,34 @@
       <section class="estimate" aria-labelledby="estimate-title">
         <div class="estimate-heading">
           <h2 class="panel-title" id="estimate-title">Предварительный расчёт</h2>
-          <span class="estimate-pill">Учебная модель</span>
+          <span class="estimate-pill">Рыночные ориентиры / модель</span>
         </div>
         <div class="frow calc-grid">
           <label class="field"><span class="calc-label">Вес груза, тонн</span><input class="input" id="weight" type="number" value="20" min="0.1" max="5000" step="0.1" inputmode="decimal"></label>
           <label class="field"><span class="calc-label">Расстояние по маршруту, км</span><input class="input" id="distance" type="number" value="2800" min="1" max="50000" step="1" inputmode="numeric" aria-describedby="distance-hint"></label>
-          <label class="field"><span class="calc-label">Условный тариф, USD/т·км</span><input class="input" id="tariff" type="number" value="0.07" min="0.001" max="100" step="0.001" inputmode="decimal"></label>
-          <label class="field"><span class="calc-label">Стоимость груза, USD</span><input class="input" id="cargo-value" type="number" value="30000" min="0" max="1000000000" step="100" inputmode="decimal"></label>
+          <label class="field"><span class="calc-label" id="tariff-label">Расчётная ставка, ₽/маш·км</span><input class="input" id="tariff" type="number" value="124.4" min="0.001" max="100000" step="0.001" inputmode="decimal"></label>
+          <label class="field"><span class="calc-label" id="cargo-value-label">Стоимость груза, ₽</span><input class="input" id="cargo-value" type="number" value="3000000" min="0" max="1000000000" step="100" inputmode="decimal"></label>
+        </div>
+        <div class="market-panel" aria-label="Ставки и курс валют">
+          <div class="market-heading">Источники ставок и курс</div>
+          <div id="market-rate-controls" class="market-rate-controls" hidden>
+            <label class="field"><span>Выберите опубликованный ориентир (тент, фура 20 т)</span>
+              <select class="input" id="market-quote"><option value="manual">Своя ставка</option></select>
+            </label>
+            <p class="market-note" id="market-data-status">Справочник загружается…</p>
+            <label class="field"><span>Дополнительные услуги, ₽ — по предложению перевозчика</span>
+              <input class="input" id="road-extra" type="number" inputmode="decimal" value="0" min="0" step="100" placeholder="0 — не добавлять" />
+            </label>
+            <p class="market-note">Полная машина до 20 т (FTL): ставка за автомобиль и километр, не за тонно-километр. При более 20 т сайт условно считает несколько машин. Тарифы тента не применяются автоматически к зерновозу, цистерне или контейнеровозу.</p>
+          </div>
+          <p id="rate-source" class="market-note">Для автоперевозок по России ставка берётся из опубликованного прайса; остальные виды транспорта — учебная модель.</p>
+          <a id="public-rate-link" class="market-source-link" target="_blank" rel="noopener noreferrer" href="https://transclick.ru/tarify/">Открыть опубликованный прайс на автоперевозки ↗</a>
+          <div class="fx-line">
+            <label class="field fx-rate-field"><span>Курс USD/RUB, ₽ за 1 USD</span><input id="fx-manual" class="input" type="number" inputmode="decimal" min="10" max="1000" step="0.0001" placeholder="Загружается…"></label>
+            <button id="fx-refresh" class="fx-refresh" type="button">Обновить курс</button>
+          </div>
+          <p id="fx-status" class="market-note" role="status" aria-live="polite">Загрузка курса…</p>
+          <p class="market-note fx-explainer">Курс — данные Банка России через <a href="https://www.cbr-xml-daily.com/" target="_blank" rel="noopener noreferrer">открытое JSON-зеркало</a>. Тарифный справочник загружается из файла tariffs.json на этом сайте. При добавлении новых проверенных данных в файл цены обновятся без изменения кода; прямых онлайн-котировок перевозчиков нет.</p>
         </div>
         <p class="distance-hint" id="distance-hint" role="status" aria-live="polite">Ориентир по выбранному маршруту. Значение можно изменить вручную.</p>
         <div class="route-verification" id="road-route-block" hidden>
@@ -100,7 +121,7 @@
             <option value="door">Продавец доставляет груз до места назначения</option>
           </select>
         </label>
-        <p class="estimate-disclaimer">Расстояния и тарифы — <b>условные параметры для тренировки расчёта</b>, а не реальные предложения перевозчиков. Их можно изменить.</p>
+        <p class="estimate-disclaimer">Для тентованных автоперевозок по России используются <b>опубликованные ориентиры с датой и ссылкой</b>, для остальных видов — учебные ставки. Договорная цена и срок могут отличаться; параметры можно изменить вручную.</p>
         <div class="estimate-result" id="estimate-result" aria-live="polite"></div>
       </section>
       <div id="incoterms-select" hidden>
@@ -158,8 +179,8 @@
   </section>
   <aside class="note-footer" id="legal-footer"><b>Обратите внимание.</b> Все тарифы, сроки, дополнительные услуги и варианты маршрутов — учебные допущения, не котировка перевозчика. НДС, пошлины, санкционные, разрешительные и специальные сборы не включены. Внутренние поставки и ВЭД имеют разные юридические сценарии. Подробнее: <a href="https://iccwbo.org/business-solutions/incoterms-rules/" target="_blank" rel="noopener noreferrer">ICC — Incoterms®</a>, <a href="https://www.consultant.ru/document/cons_doc_LAW_9027/e93c3cec8d1a1857e94f41c190a0ff38efd98968/" target="_blank" rel="noopener noreferrer">ст. 458 ГК РФ</a>.</aside>
 </main>
-<footer class="foot"><span>Условия поставки · логистика и ВЭД</span><span>Учебная модель расчёта, не тарифное предложение</span></footer>
+<footer class="foot"><span>Условия поставки · логистика и ВЭД</span><span>Модельные сроки · источники ставок и курса</span></footer>
 <div class="alertbar hidden" id="toast" role="status" aria-live="polite"></div>
-<script src="./app.js?v=7" defer></script>
+<script src="./app.js?v=9" defer></script>
 </body>
 </html>

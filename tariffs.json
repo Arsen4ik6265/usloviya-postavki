@@ -1,0 +1,78 @@
+{
+  "version": "2026-11-05",
+  "description": "Опубликованные ориентиры. Не поток котировок; изменение тарифов требует обновления этого файла по проверенным источникам.",
+  "routes": {
+    "msk-spb": [
+      {
+        "id": "cargorun-20261101",
+        "label": "CARGO.RUN · медиана заявок",
+        "rateKm": 124.4,
+        "date": "26.10–01.11.2026",
+        "url": "https://cargorun.ru/blog/stati/stavki-na-gruzoperevozki",
+        "vat": "с НДС",
+        "kind": "Недельная медиана закрытых заявок. Тент 20 т; выборка платформы, не все сделки рынка."
+      },
+      {
+        "id": "maintransport-spb-2026",
+        "label": "MainTransport · среднее по компаниям",
+        "rateKm": 93,
+        "date": "обзор 2026 года",
+        "url": "https://maintransport.ru/pro/ftl",
+        "vat": "с НДС",
+        "kind": "Обзор опубликованных предложений FTL для фуры 20 т."
+      },
+      {
+        "id": "clever-spb-20260907",
+        "label": "Клевер Логистик · тариф за рейс",
+        "priceTrip": 111722,
+        "referenceKm": 710,
+        "date": "07.09.2026",
+        "url": "https://clever-logistics.ru/route/msk/spb/",
+        "vat": "НДС в таблице не уточнён",
+        "kind": "Предварительная стоимость за рейс для тента 20 т. ₽/км рассчитаны делением на дистанцию источника."
+      }
+    ],
+    "msk-kras": [
+      {
+        "id": "maintransport-kras-20261023",
+        "label": "MainTransport · среднее по компаниям",
+        "rateKm": 110,
+        "date": "23.10.2026",
+        "url": "https://maintransport.ru/transportnye-kompanii/moskva/krasnodar",
+        "vat": "НДС уточняйте",
+        "kind": "Средняя ставка FTL 20 т по опубликованным данным компаний."
+      },
+      {
+        "id": "clever-kras-20260907",
+        "label": "Клевер Логистик · тариф за рейс",
+        "priceTrip": 177667,
+        "referenceKm": 1368,
+        "date": "07.09.2026",
+        "url": "https://clever-logistics.ru/route/msk/krasnodar/",
+        "vat": "НДС в таблице не уточнён",
+        "kind": "Предварительная стоимость за рейс для тента 20 т. ₽/км рассчитаны делением на дистанцию источника."
+      }
+    ],
+    "kazan-msk": [
+      {
+        "id": "maintransport-kazan-20261104",
+        "label": "MainTransport · среднее по компаниям",
+        "rateKm": 86,
+        "date": "04.11.2026",
+        "url": "https://maintransport.ru/transportnye-kompanii/kazany/moskva",
+        "vat": "НДС уточняйте",
+        "kind": "Средняя ставка FTL 20 т по опубликованным данным компаний."
+      },
+      {
+        "id": "clever-kazan-20260907",
+        "label": "Клевер Логистик · тариф за рейс",
+        "priceTrip": 65240,
+        "referenceKm": 817,
+        "date": "07.09.2026",
+        "url": "https://clever-logistics.ru/route/kazan/msk/",
+        "vat": "НДС в таблице не уточнён",
+        "kind": "Предварительная стоимость за рейс для тента 20 т. ₽/км рассчитаны делением на дистанцию источника."
+      }
+    ]
+  }
+}
