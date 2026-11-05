@@ -1213,3 +1213,7 @@ body.scope-domestic .fx-line,body.scope-domestic #fx-status,body.scope-domestic 
     font-size: 12px;
     line-height: 1.5;
 }
+
+/* V13 · визуальное отделение несопоставимой большой оценки */
+.mode-chart-fill.mode-chart-outlier{background:repeating-linear-gradient(135deg,#9eafba 0,#9eafba 7px,#dce6e8 7px,#dce6e8 14px)}
+.mode-compare-notice.compare-caution{background:#fff8ed;border:1px solid #e9d6b8;border-radius:9px;padding:12px 14px;color:#694e31}
