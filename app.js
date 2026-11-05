@@ -18,7 +18,7 @@
     const ANY = ['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'];
     const SEA = ['FAS', 'FOB', 'CFR', 'CIF'];
     const MODES = { sea: 'Морская / речная', road: 'Автомобильная', rail: 'Железнодорожная', air: 'Авиационная', multi: 'Мультимодальная' };
-    let state = { mode: 'sea', term: 'FOB', comparison: 'CIF' };
+    let state = { mode: 'sea', term: 'FOB', comparison: 'CIF', scope: 'domestic' };
 
     // Сценарные расстояния заданы для учебного примера, а не взяты из навигационного API.
     const ROUTES = {
@@ -40,6 +40,77 @@
     };
     const usd = n => new Intl.NumberFormat('ru-RU',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
     const routeSelect = $('route-preset');
+    const scopeDomestic = () => state.scope === 'domestic';
+    const DOMESTIC_GOALS = {
+        buyer: {label:'Самовывоз — перевозку оплачивает получатель',title:'Самовывоз / доставка за счёт получателя',description:'Получатель организует и оплачивает основную перевозку; погрузка и разгрузка распределены по учебному допущению.'},
+        seller: {label:'Доставку до пункта оплачивает отправитель',title:'Доставка за счёт отправителя',description:'Отправитель организует и оплачивает основную перевозку, разгрузка — за счёт получателя по учебному допущению.'},
+        insured: {label:'Доставка отправителем + добровольное страхование',title:'Доставка отправителем со страхованием',description:'Отправитель оплачивает перевозку и условную стоимость страхования груза.'},
+        door: {label:'Доставка отправителем с разгрузкой',title:'Доставка с разгрузкой за счёт отправителя',description:'Отправитель оплачивает перевозку, обработку и разгрузку в месте назначения по учебной модели.'}
+    };
+    const INTL_GOALS = {
+        buyer:'Основную перевозку организует покупатель',
+        seller:'Основную перевозку организует продавец',
+        insured:'Продавец оплачивает перевозку и страхование',
+        door:'Продавец доставляет товар до места назначения'
+    };
+    const ROUTE_NAMES = {
+        'nov-alex':'Новороссийск → Александрия',
+        'msk-kras':'Москва → Краснодар',
+        'msk-spb':'Москва → Санкт-Петербург',
+        'kazan-msk':'Казань → Москва',
+        'spb-ham':'Санкт-Петербург → Гамбург',
+        'sha-vla':'Шанхай → Владивосток'
+    };
+    function scopeHint() {
+        return scopeDomestic()
+          ? 'Внутренняя перевозка: расчёт доставки без экспортных и импортных процедур. Условия оплаты задают стороны договора.'
+          : 'ВЭД: условия поставки Incoterms 2020, международные услуги оформления при необходимости. Пошлины и НДС не рассчитываются.';
+    }
+    function rebuildRouteOptions(preferred) {
+        routeSelect.replaceChildren();
+        const keys = Object.keys(ROUTES).filter(id => ROUTES[id].international !== scopeDomestic());
+        keys.forEach(id => {
+            const option=document.createElement('option');
+            option.value=id;
+            option.textContent=ROUTE_NAMES[id];
+            routeSelect.append(option);
+        });
+        const custom=document.createElement('option');
+        custom.value='custom';custom.textContent='Свой маршрут (ввести расстояние)';
+        routeSelect.append(custom);
+        routeSelect.value=(preferred && (preferred==='custom'||keys.includes(preferred)))?preferred:(scopeDomestic()?'msk-spb':'nov-alex');
+    }
+    function updateScopeUi() {
+        document.body.classList.toggle('scope-domestic',scopeDomestic());
+        document.body.classList.toggle('scope-international',!scopeDomestic());
+        document.querySelectorAll('[data-scope]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.scope===state.scope)));
+        $('scope-explainer').textContent=scopeHint();
+        $('customs-row').hidden=scopeDomestic();
+        $('customs-hint').hidden=scopeDomestic();
+        $('incoterms-select').hidden=scopeDomestic();
+        $('incoterms-detail').hidden=scopeDomestic();
+        $('comparison').hidden=scopeDomestic();
+        $('domestic-info').hidden=!scopeDomestic();
+        $('incoterms-nav-link').hidden=scopeDomestic();
+        $('delivery-goal-label').textContent=scopeDomestic()?'Кто организует и оплачивает доставку?':'Какое условие поставки нужно?';
+        $('hero-lead').textContent=scopeDomestic()
+          ? 'Рассчитайте доставку по России и сравните варианты перевозки. Таможенные процедуры и Incoterms здесь не используются.'
+          : 'Международная поставка: оценка логистических расходов, распределение обязанностей и подбор Incoterms 2020.';
+        const goal=$('delivery-goal'),previous=goal.value;
+        goal.replaceChildren();
+        Object.entries(scopeDomestic()?DOMESTIC_GOALS:INTL_GOALS).forEach(([value,label])=>{
+            const o=document.createElement('option');o.value=value;o.textContent=scopeDomestic()?label.label:label;goal.append(o);
+        });
+        goal.value=previous in DOMESTIC_GOALS ? previous : 'buyer';
+    }
+    function setScope(scope,preferred) {
+        if(scope!== 'domestic' && scope!=='international')return;
+        invalidateRoadDistance();
+        state.scope=scope;
+        updateScopeUi();
+        rebuildRouteOptions(preferred);
+        setPresetRoute();
+    }
     let manualDistance = false;
     let manualDistanceKey = null;
     let manualRate = false;
@@ -277,8 +348,8 @@
     function setPresetRoute(){
         invalidateRoadDistance();
         const r=currentRoute();
-        $('international-row').hidden=!!r;
         if (!r) {
+            $('origin').value='';$('destination').value='';
             $('distance').value = '';
             manualDistance = true;
             manualDistanceKey = roadKey();
@@ -313,21 +384,25 @@
         const cargo=scenario ? scenario.cargo : $('cargo').value;
         if (![weight,distance,rate].every(n=>Number.isFinite(n)&&n>0) || !Number.isFinite(declaredValue) || declaredValue<0) return null;
         const params=RATES[mode];
-        const intl=scenario ? scenario.international : route?route.international:$('international').checked;
+        const intl=!scopeDomestic();
+        const goal=$('delivery-goal').value;
         const main=Math.max(params.minimum,weight*distance*rate);
         const handlingFactor=cargo==='container'?1.25:cargo==='general'?1.15:1;
         const origin=(params.origin+weight*4)*handlingFactor;
         const destination=(params.destination+weight*4)*handlingFactor;
-        const exportDoc=intl?180:0;
-        const importAdmin=intl?220:0;
-        const insurance=(term==='CIF'||term==='CIP')?Math.max(70,declaredValue*(term==='CIP'?0.006:0.003)):0;
+        const customs=intl && $('customs-applicable').checked;
+        const exportDoc=customs?180:0;
+        const importAdmin=customs?220:0;
+        const insurance=intl
+          ? ((term==='CIF'||term==='CIP')?Math.max(70,declaredValue*(term==='CIP'?0.006:0.003)):0)
+          : (goal==='insured'?Math.max(70,declaredValue*.003):0);
         const items=[
-            {name:'Погрузка / обработка при отправлении',price:origin,owner:term==='EXW'?B:A},
-            {name:'Основная перевозка',price:main,owner:t.freight},
-            {name:'Экспортные документы (условно)',price:exportDoc,owner:t.export},
-            {name:'Обработка / разгрузка в пункте назначения',price:destination,owner:t.unloading},
-            {name:'Импортное оформление — услуги (без пошлин)',price:importAdmin,owner:t.import},
-            {name:'Обязательное страхование по базису',price:insurance,owner:t.insurance}
+            {name:'Погрузка / обработка при отправлении',price:origin,owner:intl?(term==='EXW'?B:A):(goal==='buyer'?B:A)},
+            {name:'Основная перевозка',price:main,owner:intl?t.freight:(goal==='buyer'?B:A)},
+            ...(customs?[{name:'Услуги по экспортному оформлению (условно)',price:exportDoc,owner:t.export}]:[]),
+            {name:'Обработка / разгрузка в пункте назначения',price:destination,owner:intl?t.unloading:(goal==='door'?A:B)},
+            ...(customs?[{name:'Услуги по импортному оформлению (без пошлин)',price:importAdmin,owner:t.import}]:[]),
+            ...(insurance>0?[{name:intl?'Страхование по базису':'Добровольное страхование груза (модель)',price:insurance,owner:intl?t.insurance:A}]:[])
         ].filter(x=>x.price>0);
         const total=items.reduce((s,x)=>s+x.price,0);
         const seller=items.filter(x=>x.owner===A).reduce((s,x)=>s+x.price,0);
@@ -346,6 +421,7 @@
     const distanceNum = n => new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(n);
     const daysLabel = n => '~' + new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(n) + ' дн.';
     const goalLabel = {buyer:'Перевозку организует покупатель',seller:'Перевозку организует продавец',insured:'Продавец оплачивает перевозку и страхование',door:'Доставка до места назначения'};
+    const scopeGoalLabel = goal => scopeDomestic() ? DOMESTIC_GOALS[goal].title : goalLabel[goal];
     function recForMode(mode) {
         const goal=$('delivery-goal').value;
         const isMarine=mode==='sea';
@@ -362,7 +438,7 @@
         const modes=route ? Object.keys(route.modes) : [state.mode];
         const weight=calcNumber('weight'),declaredValue=calcNumber('cargo-value');
         if (!Number.isFinite(weight) || weight<=0 || !Number.isFinite(declaredValue) || declaredValue<0) return [];
-        const international=route ? route.international : $('international').checked;
+        const international=!scopeDomestic();
         const rows=[];
         for (const mode of modes){
             let distance;
@@ -380,10 +456,9 @@
             if(!Number.isFinite(distance) || distance<=0) continue;
             const rate = mode===state.mode ? calcNumber('tariff') : RATES[mode].tkm;
             if(!Number.isFinite(rate) || rate<=0)continue;
-            const recommendedTerm=recForMode(mode);
-            // Активная карточка всегда совпадает по стоимости с текущим калькулятором,
-            // даже если пользователь вручную выбрал другой Incoterms.
-            const term=mode===state.mode ? state.term : recommendedTerm;
+            const recommendedTerm=scopeDomestic()?'':recForMode(mode);
+            // Активная карточка всегда совпадает по стоимости с текущим калькулятором.
+            const term=scopeDomestic()?'':(mode===state.mode ? state.term : recommendedTerm);
             const estimate=estimateValues(term,{weight,declaredValue,distance,rate,mode,cargo:$('cargo').value,international});
             if(!estimate)continue;
             const daily=DELIVERY_MODEL[mode];
@@ -416,14 +491,14 @@
         root.replaceChildren();
         const scenarioRoute=currentRoute();
         const rows=transportScenarios();
-        $('transport-context').textContent=($('origin').value.trim()||'Пункт отправления')+' → '+($('destination').value.trim()||'Пункт назначения')+' · '+(goalLabel[$('delivery-goal').value]||'Сравнение схем');
+        $('transport-context').textContent=($('origin').value.trim()||'Пункт отправления')+' → '+($('destination').value.trim()||'Пункт назначения')+' · '+(scopeGoalLabel($('delivery-goal').value)||'Сравнение схем');
         if (!rows.length){
             const empty=document.createElement('p');empty.className='mode-compare-empty';
             empty.textContent='Для сравнения нужны положительные вес и стоимость груза, а также расстояние и тариф. Проверьте параметры расчёта.';
             root.append(empty);return;
         }
         const summary=document.createElement('p');summary.className='mode-compare-disclaimer';
-        summary.textContent=scenarioRoute ? 'Сравнение по учебным сценариям этого маршрута. Для выбранного вида транспорта используется текущий базис Incoterms, для альтернатив — рекомендованный по цели. Ставки и сроки не подтверждены перевозчиками.' : 'Для своего маршрута показан только выбранный вид транспорта. Для сравнения нескольких видов выберите маршрут из примеров.';
+        summary.textContent=scenarioRoute ? (scopeDomestic()?'Сравнение внутренних перевозок по учебным сценариям без внешнеторговых процедур. Ставки и сроки не подтверждены перевозчиками.':'Сравнение международных перевозок по учебным сценариям. Для альтернатив показан рекомендуемый Incoterms. Ставки и сроки не подтверждены перевозчиками.') : 'Для своего маршрута показан только выбранный вид транспорта. Для сравнения нескольких видов выберите маршрут из примеров.';
         root.append(summary);
         if(rows.length>1){
             const winners=transportWinners(rows);
@@ -479,7 +554,7 @@
             const eta=document.createElement('span');eta.textContent=daysLabel(item.days);
             amounts.append(total,eta);
             const details=document.createElement('dl');details.className='mode-option-facts';
-            [['Расстояние',distanceNum(item.distance)+' км'],['Основная перевозка',usd(item.freight)],['Базис в расчёте',item.term],['Рекомендация Incoterms',item.recommendedTerm],['Источник расстояния',item.distSource]].forEach(([key,value],i)=>{
+            [['Расстояние',distanceNum(item.distance)+' км'],['Основная перевозка',usd(item.freight)],...(scopeDomestic()? [['Условия доставки',scopeGoalLabel($('delivery-goal').value)]] : [['Базис в расчёте',item.term],['Рекомендация Incoterms',item.recommendedTerm]]),['Источник расстояния',item.distSource]].forEach(([key,value],i)=>{
                 const wrap=document.createElement('div'),k=document.createElement('dt'),v=document.createElement('dd');
                 k.textContent=key;v.textContent=value;wrap.append(k,v);details.append(wrap);
             });
@@ -496,15 +571,34 @@
         });
         root.append(cards);
         const foot=document.createElement('p');foot.className='mode-compare-disclaimer';
-        foot.textContent='Принцип: стоимость = тот же учебный расчёт (вес × расстояние × тариф + обработка и оформление; страхование — когда требуется по рекомендованному базису). Срок — условная скорость и время обработки. Для автодорог при наличии OSRM используется время чистого движения с учебным допущением 8 часов в день. Нет данных о расписаниях, работе портов, наличии рейсов, ограничениях грузовиков и границах. Баланс — равный вес нормализованных стоимости и срока, только внутри показанных вариантов.';
+        foot.textContent='Принцип: стоимость = учебный расчёт (вес × расстояние × тариф + обработка'+(scopeDomestic()?'':' + выбранные услуги таможенного оформления')+'; страхование — только когда оно задано в схеме). Срок — условная скорость и время обработки. Для автодорог OSRM показывает время чистого движения; для срока доставки модель условно считает 8 часов вождения в день. Нет данных о расписаниях, работе портов, наличии рейсов, ограничениях грузовиков и границах. Баланс — равный вес нормализованных стоимости и срока внутри показанных вариантов.';
         root.append(foot);
     }
 
+    function renderDomesticTerms(){
+        if(!scopeDomestic())return;
+        const goal=$('delivery-goal').value;
+        const data=DOMESTIC_GOALS[goal];
+        const container=$('domestic-summary');
+        container.replaceChildren();
+        const tag=document.createElement('div');tag.className='domestic-term';tag.textContent='ВНУТРЕННЯЯ ДОСТАВКА · ПО ДОГОВОРУ';
+        const title=document.createElement('h3');title.textContent=data.title;
+        const detail=document.createElement('p');detail.textContent=data.description;
+        const route=document.createElement('p');route.textContent=($('origin').value.trim()||'Отправление')+' → '+($('destination').value.trim()||'Назначение');
+        container.append(tag,title,detail,route);
+        const matrix=$('domestic-matrix');matrix.replaceChildren();
+        matrix.append(
+          row('Основная перевозка',goal==='buyer'?B:A,goal==='buyer'?'Получатель':'Отправитель'),
+          row('Погрузка при отправлении',goal==='buyer'?B:A,goal==='buyer'?'Получатель':'Отправитель'),
+          row('Разгрузка в пункте назначения',goal==='door'?A:B,goal==='door'?'Отправитель':'Получатель'),
+          row('Страхование',goal==='insured'?A:N,goal==='insured'?'Отправитель':'По соглашению сторон')
+        );
+    }
     function renderEstimate(){
         const root=$('estimate-result');
         root.replaceChildren();
         const route=currentRoute();
-        const rec=recTerm();
+        const rec=scopeDomestic()?null:recTerm();
         if(!hasValidInput()){
             const error=document.createElement('div');error.className='estimate-empty';
             error.textContent='Укажите положительные вес, расстояние и тариф. Для своего маршрута расстояние нужно ввести самостоятельно. Стоимость груза не должна быть отрицательной.';
@@ -513,11 +607,13 @@
         const estimate=estimateValues(state.term);
         if(!estimate)return;
         const top=document.createElement('div');top.className='estimate-summary';
-        const heading=document.createElement('h3');heading.textContent='Подходящий базис под выбранную задачу';
-        const recommendation=document.createElement('p');recommendation.className='estimate-recommend';recommendation.textContent=rec.code+' — '+TERMS[rec.code].name;
-        const why=document.createElement('p');why.className='estimate-reason';why.textContent=rec.reason;
+        const heading=document.createElement('h3');heading.textContent=scopeDomestic()?'Договорная схема доставки':'Подходящий базис под выбранную задачу';
+        const recommendation=document.createElement('p');recommendation.className='estimate-recommend';
+        recommendation.textContent=scopeDomestic()?DOMESTIC_GOALS[$('delivery-goal').value].title:rec.code+' — '+TERMS[rec.code].name;
+        const why=document.createElement('p');why.className='estimate-reason';
+        why.textContent=scopeDomestic()?DOMESTIC_GOALS[$('delivery-goal').value].description:rec.reason;
         top.append(heading,recommendation,why);
-        if(state.term!==rec.code){
+        if(!scopeDomestic() && state.term!==rec.code){
             const actions=document.createElement('div');actions.className='estimate-actions';
             const apply=document.createElement('button');apply.type='button';apply.textContent='Выбрать '+rec.code;
             apply.addEventListener('click',()=>{state.term=rec.code;manuallyChangedTerm=false;renderAll();});
@@ -525,7 +621,7 @@
         }
         root.append(top);
         const sum=document.createElement('div');sum.className='estimate-value';sum.textContent=usd(estimate.total);
-        const sumLabel=document.createElement('p');sumLabel.className='estimate-sub';sumLabel.textContent='Сумма моделируемых транспортных и сопутствующих расходов · выбран базис '+state.term;
+        const sumLabel=document.createElement('p');sumLabel.className='estimate-sub';sumLabel.textContent=scopeDomestic()?'Сумма условных расходов по внутренней перевозке, без таможенных статей':'Сумма моделируемых транспортных и сопутствующих расходов · выбран базис '+state.term;
         const range=document.createElement('p');range.className='estimate-sub';range.textContent='Иллюстративный диапазон ±25%: '+usd(estimate.total*.75)+' — '+usd(estimate.total*1.25)+' (не статистическая оценка).';
         root.append(sum,sumLabel,range);
         const table=document.createElement('table');table.className='estimate-table';
@@ -533,19 +629,20 @@
         const body=document.createElement('tbody');
         estimate.items.forEach(item=>{
             const tr=document.createElement('tr');
-            [item.name, item.owner===A?'Продавец':item.owner===B?'Покупатель':'По выбору сторон',usd(item.price)].forEach(value=>{const td=document.createElement('td');td.textContent=value;tr.append(td)});
+            [item.name, item.owner===A?(scopeDomestic()?'Отправитель':'Продавец'):item.owner===B?(scopeDomestic()?'Получатель':'Покупатель'):'По договорённости',usd(item.price)].forEach(value=>{const td=document.createElement('td');td.textContent=value;tr.append(td)});
             body.append(tr);
         });
         table.append(thead,body);root.append(table);
         const totals=document.createElement('p');totals.className='estimate-totals';
-        totals.textContent='Из смоделированных расходов: продавец — '+usd(estimate.seller)+', покупатель — '+usd(estimate.buyer)+'.';
+        totals.textContent=scopeDomestic()?'По учебной схеме: отправитель — '+usd(estimate.seller)+', получатель — '+usd(estimate.buyer)+'.':'По учебной схеме: продавец — '+usd(estimate.seller)+', покупатель — '+usd(estimate.buyer)+'.';
         root.append(totals);
         const detail=document.createElement('p');detail.className='estimate-sub';
-        detail.textContent='Фрахт: максимум из '+usd(RATES[state.mode].minimum)+' и (вес × расстояние × тариф) = '+usd(estimate.main)+'. Погрузка, оформление и страхование рассчитаны по условным ставкам.';
+        detail.textContent='Основная перевозка: максимум из '+usd(RATES[state.mode].minimum)+' и (вес × расстояние × тариф) = '+usd(estimate.main)+'. Остальные статьи рассчитаны по учебным ставкам.';
         root.append(detail);
         const caution=document.createElement('p');caution.className='estimate-sub';
-        caution.textContent='Важно: Incoterms распределяет затраты и риски, но не определяет рыночную цену перевозки. Этот расчёт не включает стоимость товара, налоги, пошлины и индивидуальные сборы; суммы не являются котировкой.';
+        caution.textContent=scopeDomestic()?'Внутренняя перевозка: таможенные расходы не применяются. Распределение расходов показано как пример и определяется договором. НДС, стоимость товара и специальные сборы не учтены; суммы не являются котировкой.':'ВЭД: Incoterms распределяет задачи, затраты и риски, но не определяет рыночную цену перевозки. Таможенные пошлины, налоги, стоимость товара и специальные сборы не включены; суммы не являются котировкой.';
         root.append(caution);
+        if(scopeDomestic())renderDomesticTerms();
         renderTransportComparison();
     }
     function changeTransport(mode){
@@ -582,8 +679,9 @@
         const found=findKnownRoute();
         if(found){
             const [routeId,route]=found;
+            const newScope=route.international?'international':'domestic';
+            if(newScope!==state.scope){setScope(newScope,routeId);return;}
             routeSelect.value=routeId;
-            $('international-row').hidden=true;
             if(!route.modes[state.mode]){
                 const previousMode=state.mode;
                 state.mode=Object.keys(route.modes)[0];
@@ -600,7 +698,7 @@
             if(!manualRate){$('tariff').value=RATES[state.mode].tkm;}
         }else{
             routeSelect.value='custom';
-            $('international-row').hidden=false;
+            // Для своего маршрута тип поставки задаётся переключателем выше.
             if(!manualDistance){$('distance').value='';}
         }
         updateDistanceHint();
@@ -609,7 +707,8 @@
     ['origin','destination'].forEach(id => $(id).addEventListener('blur', scheduleRoadLookup));
     $('road-route-btn').addEventListener('click', () => getRoadDistance(true));
     $('delivery-goal').addEventListener('change',()=>{manuallyChangedTerm=false;state.term=recTerm().code;renderAll();});
-    $('international').addEventListener('change',renderEstimate);
+    $('customs-applicable').addEventListener('change',renderAll);
+    document.querySelectorAll('[data-scope]').forEach(btn=>btn.addEventListener('click',()=>setScope(btn.dataset.scope)));
 
     let toastTimer;
     function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.add('hidden'), 3500); }
@@ -721,7 +820,7 @@
             root.append(block);
         });
     }
-    function renderAll() { updateRoadControls(); chooseFallback(); uiButtons(); renderTerms(); const rec = recommendation(); const box = $('compatibility'); box.className = 'status' + (rec.type === 'warn' ? ' warn' : rec.type === 'neutral' ? ' neutral' : ''); box.replaceChildren(); const title = document.createElement('strong'); title.textContent = rec.title; box.append(title, document.createTextNode(rec.message)); details(state.term); renderComparison(); renderEstimate(); }
+    function renderAll() { updateRoadControls(); uiButtons(); if(!scopeDomestic()){ chooseFallback();renderTerms();const rec=recommendation();const box=$('compatibility');box.className='status'+(rec.type==='warn'?' warn':rec.type==='neutral'?' neutral':'');box.replaceChildren();const title=document.createElement('strong');title.textContent=rec.title;box.append(title,document.createTextNode(rec.message));details(state.term);renderComparison();}renderEstimate(); }
     document.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => changeTransport(btn.dataset.mode)));
     $('cargo').addEventListener('change', () => { if (state.mode === 'sea' && $('cargo').value === 'container')
         $('handover').value = 'terminal'; if (state.mode === 'sea' && $('cargo').value !== 'container' && $('handover').value === 'terminal')
@@ -730,6 +829,15 @@
 
     $('compare-term').addEventListener('change', e => { state.comparison = e.target.value; renderComparison(); });
     $('compare-open').addEventListener('click', () => { $('comparison').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    $('copy-domestic').addEventListener('click', async () => {
+        const estimate=estimateValues('');
+        if(!estimate){toast('Заполните параметры расчёта');return;}
+        const rows=estimate.items.map(x=>x.name+': '+usd(x.price)+' ('+(x.owner===A?'отправитель':'получатель')+')').join('\n');
+        const report='Внутренняя перевозка\n'+$('origin').value+' → '+$('destination').value+'\n'+
+          MODES[state.mode]+'\nУсловия: '+DOMESTIC_GOALS[$('delivery-goal').value].title+'\n'+rows+'\nИтого: '+usd(estimate.total)+'\nУчебный расчёт, без таможенных статей. Распределение обязанностей определяется договором.';
+        try { await navigator.clipboard.writeText(report);toast('Расчёт скопирован'); }
+        catch(e){ const t=document.createElement('textarea');t.value=report;t.style.cssText='position:fixed;top:0;opacity:0';document.body.append(t);t.select();const ok=document.execCommand('copy');t.remove();toast(ok?'Расчёт скопирован':'Копирование недоступно'); }
+    });
     $('copy').addEventListener('click', async () => {
         const c = state.term, t = TERMS[c], point = (t.place === 'origin' ? $('origin').value : $('destination').value).trim();
         const report = `Условия поставки\nМаршрут: ${$('origin').value} → ${$('destination').value}\nВид перевозки: ${MODES[state.mode]}\nБазис: ${c} ${point}, Incoterms® 2020\nПереход риска: ${t.risk}\nЭкспортное оформление: ${person(t.export)}\nОсновная перевозка: ${person(t.freight)}\nСтрахование по базису: ${t.insurance === A ? 'Продавец' : 'Не обязателен'}\nИмпортное оформление: ${person(t.import)}\nРазгрузка: ${person(t.unloading)}\n\nУпрощённый учебный пример. Не является юридической консультацией.`;
@@ -749,6 +857,6 @@
         }
     });
     renderHandover();
-    setPresetRoute();
+    setScope('domestic');
 })();
 

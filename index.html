@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffffff">
-  <meta name="description" content="Условия поставки: выбор базиса Incoterms 2020 с учётом вида транспорта и способа передачи груза.">
-  <title>Условия поставки — Incoterms 2020</title>
-  <link rel="stylesheet" href="./style.css?v=6">
+  <meta name="description" content="Условия поставки: сравнение перевозок внутри страны и для ВЭД, учебный расчёт расходов, Incoterms 2020.">
+  <title>Условия поставки — логистика по России и ВЭД</title>
+  <link rel="stylesheet" href="./style.css?v=7">
 </head>
 <body>
 <header>
@@ -15,21 +15,29 @@
     <nav class="top-links" aria-label="Разделы страницы">
       <a href="#configurator">Параметры</a>
       <a href="#transport-comparison">Транспорт</a>
-      <a href="#comparison">Incoterms</a>
+      <a href="#comparison" id="incoterms-nav-link" hidden>Incoterms</a>
     </nav>
   </div>
 </header>
 <section class="hero">
   <div class="hero-inner">
-    <h1>Проверка базиса Incoterms 2020</h1>
-    <p class="hero-lead">Выберите вид транспорта, тип груза и способ передачи. Ниже можно проверить подходящие базисы и сравнить обязанности сторон.</p>
+    <h1>Расчёт перевозки и условий поставки</h1>
+    <p class="hero-lead" id="hero-lead">Для внутренних перевозок — условия доставки по договору. Для международной торговли — расчёт и подбор Incoterms 2020.</p>
   </div>
 </section>
 <main>
   <div class="columns" id="configurator">
     <section class="panel" aria-labelledby="form-title">
       <h2 class="panel-title" id="form-title">Параметры перевозки</h2>
-      <p class="panel-sub">Выберите маршрут и заполните параметры. Ниже можно сравнить расходы и сроки доступных учебных сценариев.</p>
+      <p class="panel-sub">Сначала выберите тип поставки. Сайт покажет только относящиеся к нему расходы и условия.</p>
+      <div class="scope-panel" aria-labelledby="scope-title">
+        <div class="scope-head" id="scope-title">Тип поставки</div>
+        <div class="scope-tabs" id="scope-tabs" role="group" aria-label="Тип поставки">
+          <button type="button" data-scope="domestic" aria-pressed="true">Внутри страны</button>
+          <button type="button" data-scope="international" aria-pressed="false">Международная · ВЭД</button>
+        </div>
+        <p id="scope-explainer" class="scope-explainer">Расчёт перевозки внутри России — без таможенных процедур и обязательного применения Incoterms.</p>
+      </div>
       <div class="frow route-first">
         <label class="field field-full">Маршрут из примеров
           <select class="input" id="route-preset">
@@ -47,7 +55,8 @@
         <label class="field">Пункт отправления<input id="origin" class="input" value="Новороссийск" maxlength="90" autocomplete="off"></label>
         <label class="field">Пункт назначения<input id="destination" class="input" value="Александрия" maxlength="90" autocomplete="off"></label>
       </div>
-      <label class="estimate-disclaimer" id="international-row" hidden><input type="checkbox" id="international" checked> Международная перевозка (для ручного маршрута)</label>
+      <label class="estimate-disclaimer" id="customs-row" hidden><input type="checkbox" id="customs-applicable" checked> Добавить учебные расходы на экспортное и импортное оформление, если применимо</label>
+      <p class="estimate-disclaimer" id="customs-hint" hidden>Для отдельных торговых направлений, включая часть операций внутри ЕАЭС, эти процедуры могут не требоваться. Пошлины и НДС калькулятор не рассчитывает.</p>
       <div class="fgroup">
         <span class="legend">Вид перевозки</span>
         <div class="mode-grid" id="mode-buttons" role="group" aria-label="Вид перевозки">
@@ -59,10 +68,10 @@
         </div>
       </div>
       <div class="frow">
-        <label class="field">Тип груза<select class="input" id="cargo">
+        <label class="field" id="cargo-field">Тип груза<select class="input" id="cargo">
           <option value="bulk">Зерно / навалочный</option><option value="container">Контейнерный</option><option value="general">Штучный груз (паллеты, оборудование)</option><option value="liquid">Наливной</option>
         </select></label>
-        <label class="field">Место передачи перевозчику<select class="input" id="handover">
+        <label class="field" id="handover-field">Место передачи перевозчику<select class="input" id="handover">
           <option value="onboard">На борту судна</option><option value="alongside">Вдоль борта судна</option><option value="terminal">Перевозчику / терминалу</option>
         </select><small id="handover-hint">Уточняет применимость морских правил.</small></label>
       </div>
@@ -83,7 +92,7 @@
           <span class="road-route-status" id="road-route-status" role="status" aria-live="polite">Для известных городов расстояние и время определяются автоматически. Результат можно изменить вручную.</span>
           <a class="road-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">Картографические данные © OpenStreetMap</a>
         </div>
-        <label class="field">Какой результат нужен?
+        <label class="field"><span id="delivery-goal-label">Условия организации доставки</span>
           <select class="input" id="delivery-goal">
             <option value="buyer">Основную перевозку организует покупатель</option>
             <option value="seller">Основную перевозку организует продавец</option>
@@ -94,8 +103,9 @@
         <p class="estimate-disclaimer">Расстояния и тарифы — <b>условные параметры для тренировки расчёта</b>, а не реальные предложения перевозчиков. Их можно изменить.</p>
         <div class="estimate-result" id="estimate-result" aria-live="polite"></div>
       </section>
+      <div id="incoterms-select" hidden>
       <div class="divider"></div>
-      <h2 class="panel-title">Базис поставки</h2>
+      <h2 class="panel-title">Базис Incoterms 2020</h2>
       <p class="panel-sub" style="margin-bottom:16px">Доступность базиса зависит от транспорта и того, где груз передают перевозчику.</p>
       <div id="compatibility" class="status" role="status" aria-live="polite"></div>
       <p class="term-group-heading">Для любого вида транспорта</p>
@@ -103,9 +113,10 @@
       <p class="term-group-heading">Только море или внутренние водные пути</p>
       <div class="terms-grid" id="sea-terms" role="group" aria-label="Морские базисы"></div>
       <p class="term-guide">* Для контейнеров, передаваемых на терминале до погрузки, обычно предпочтительнее FCA, CPT или CIP. Даже при морском маршруте FOB/CFR/CIF не всегда подходят.</p>
+      </div>
     </section>
     <div>
-      <section class="panel" aria-labelledby="result-heading">
+      <section class="panel" id="incoterms-detail" aria-labelledby="result-heading" hidden>
         <div class="result-head"><div><h2 class="panel-title" id="result-heading">Условия выбранного базиса</h2><p class="panel-sub" style="margin:0">Что предусматривает выбранный базис</p></div></div>
         <h3 class="result-term" id="term-code">FOB</h3>
         <p class="term-full" id="term-title"></p>
@@ -121,6 +132,14 @@
         <p class="mat-note">Incoterms регулируют обязанности, расходы и риски по договору купли-продажи, но не определяют цену товара, переход права собственности и все условия таможенного/транспортного договора.</p>
         <div class="actions"><button class="btn" id="copy" type="button">Скопировать условия</button><button class="btn secondary" id="compare-open" type="button">Перейти к сравнению ↓</button></div>
       </section>
+      <section class="panel domestic-info" id="domestic-info" aria-labelledby="domestic-info-heading">
+        <h2 id="domestic-info-heading" class="panel-title">Условия внутренней перевозки</h2>
+        <p class="panel-sub">Логистический расчёт по договорённости сторон без экспортных и импортных формальностей.</p>
+        <div class="domestic-summary" id="domestic-summary"></div>
+        <div id="domestic-matrix"></div>
+        <p class="mat-note">Переход риска при купле-продаже зависит от закона и договора (статьи 458–459 ГК РФ). Доставка собственного товара между складами не образует договор купли-продажи. Incoterms при внутренних продажах возможен по соглашению сторон, но в этом режиме не используется.</p>
+        <div class="actions"><button class="btn" id="copy-domestic" type="button">Скопировать расчёт</button></div>
+      </section>
     </div>
   </div>
   <section class="panel transport-comparison" id="transport-comparison" aria-labelledby="transport-compare-title">
@@ -133,14 +152,14 @@
     </div>
     <div id="transport-comparison-result" aria-live="polite"></div>
   </section>
-  <section class="panel comparison" id="comparison" aria-labelledby="comparison-title">
+  <section class="panel comparison" id="comparison" hidden aria-labelledby="comparison-title">
     <div class="compare-head"><div><h2 id="comparison-title">Сравнение условий</h2><p class="panel-sub" style="margin:6px 0 0">Сравните, кто организует перевозку, оформляет груз и несёт расходы.</p></div><label class="compare-control"><span class="compare-label">Сравнить с</span><select id="compare-term" class="input" aria-label="Второй базис для сравнения" style="min-width:120px"></select></label></div>
     <div class="compare-cards" id="comparison-cards"></div>
   </section>
-  <aside class="note-footer"><b>Обратите внимание.</b> Калькулятор показывает учебный пример транспортных расходов на основе введённых допущений, а не рыночную котировку. Не включены стоимость товара, пошлины, НДС, санкционные/разрешительные и специальные сборы. Сайт не заменяет текст Incoterms® 2020 или консультацию специалиста. Проверка места передачи упрощена. Итоговый выбор зависит от договора и фактического момента передачи груза. Подробнее: <a href="https://iccwbo.org/business-solutions/incoterms-rules/incoterms-2020/" target="_blank" rel="noopener noreferrer">ICC — Incoterms® 2020</a> и <a href="https://www.trade.gov/know-your-incoterms" target="_blank" rel="noopener noreferrer">Trade.gov — Know Your Incoterms</a>.</aside>
+  <aside class="note-footer" id="legal-footer"><b>Обратите внимание.</b> Все тарифы, сроки, дополнительные услуги и варианты маршрутов — учебные допущения, не котировка перевозчика. НДС, пошлины, санкционные, разрешительные и специальные сборы не включены. Внутренние поставки и ВЭД имеют разные юридические сценарии. Подробнее: <a href="https://iccwbo.org/business-solutions/incoterms-rules/" target="_blank" rel="noopener noreferrer">ICC — Incoterms®</a>, <a href="https://www.consultant.ru/document/cons_doc_LAW_9027/e93c3cec8d1a1857e94f41c190a0ff38efd98968/" target="_blank" rel="noopener noreferrer">ст. 458 ГК РФ</a>.</aside>
 </main>
-<footer class="foot"><span>Условия поставки · Incoterms 2020</span><span>Учебная модель расчёта, не тарифное предложение</span></footer>
+<footer class="foot"><span>Условия поставки · логистика и ВЭД</span><span>Учебная модель расчёта, не тарифное предложение</span></footer>
 <div class="alertbar hidden" id="toast" role="status" aria-live="polite"></div>
-<script src="./app.js?v=6" defer></script>
+<script src="./app.js?v=7" defer></script>
 </body>
 </html>
