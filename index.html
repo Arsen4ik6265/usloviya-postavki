@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <meta name="description" content="Условия поставки: сравнение перевозок внутри страны и для ВЭД, учебный расчёт расходов, Incoterms 2020.">
   <title>Условия поставки — логистика по России и ВЭД</title>
-  <link rel="stylesheet" href="./style.css?v=13.2">
+  <link rel="stylesheet" href="./style.css?v=13.3">
 </head>
 <body>
 <header>
@@ -81,7 +81,7 @@
           <span class="estimate-pill">Справочная оценка</span>
         </div>
         <div class="frow calc-grid">
-          <label class="field"><span class="calc-label">Вес груза, тонн</span><input class="input" id="weight" type="number" value="20" min="0.1" max="5000" step="0.1" inputmode="decimal"></label>
+          <label class="field"><span class="calc-label">Масса партии, тонн</span><input class="input" id="weight" type="number" value="20" min="0.1" step="0.1" inputmode="decimal"></label>
           <label class="field"><span class="calc-label">Расстояние по маршруту, км</span><input class="input" id="distance" type="number" value="2800" min="1" max="50000" step="1" inputmode="numeric" aria-describedby="distance-hint"></label>
           <label class="field"><span class="calc-label" id="tariff-label">Расчётная ставка, ₽/маш·км</span><input class="input" id="tariff" type="number" value="124.4" min="0.001" max="100000" step="0.001" inputmode="decimal"></label>
           <label class="field"><span class="calc-label" id="cargo-value-label">Стоимость груза, ₽</span><input class="input" id="cargo-value" type="number" value="3000000" min="0" max="1000000000" step="100" inputmode="decimal"></label>
@@ -103,7 +103,7 @@
                 <label class="field"><span>Прочие согласованные расходы, ₽</span><input class="input" id="road-other" type="number" inputmode="decimal" value="0" min="0" step="100"></label>
               </div>
             </div>
-            <p class="market-note">Полная машина до 20 т (FTL): ставка за автомобиль и километр, не за тонно-километр. При более 20 т сайт условно считает несколько машин. Тарифы тента не применяются автоматически к зерновозу, цистерне или контейнеровозу.</p>
+            <p class="market-note">Масса указана для всей партии. Для фуры до 20 т (FTL) ставка задаётся за автомобиль и километр, не за тонно-километр. Для партии свыше 20 т сайт условно считает несколько машин; доступность машин и организацию рейсов нужно согласовать с перевозчиком. Тарифы тента не применяются автоматически к зерновозу, цистерне или контейнеровозу.</p>
           </div>
           <p id="rate-source" class="market-note">Для автоперевозок по России ставка берётся из опубликованного прайса; остальные виды транспорта — учебная модель.</p>
           <a id="public-rate-link" class="market-source-link" target="_blank" rel="noopener noreferrer" href="https://transclick.ru/tarify/">Открыть опубликованный прайс на автоперевозки ↗</a>
@@ -207,7 +207,7 @@
 </main>
 <footer class="foot"><span>Условия поставки · логистика и ВЭД</span><span>Модельные сроки · источники ставок и курса</span></footer>
 <div class="alertbar hidden" id="toast" role="status" aria-live="polite"></div>
-<script src="./app.js?v=13.2" defer></script>
+<script src="./app.js?v=13.3" defer></script>
 </body>
 </html>
 

@@ -67,7 +67,7 @@
             const ctrl=new AbortController();
             const timeout=setTimeout(()=>ctrl.abort(),5000);
             let response;
-            try{ response=await fetch('./tariffs.json?v=13.2', {cache:'no-store',signal:ctrl.signal}); }
+            try{ response=await fetch('./tariffs.json?v=13.3', {cache:'no-store',signal:ctrl.signal}); }
             finally{clearTimeout(timeout);}
             if(!response.ok)throw new Error('HTTP '+response.status);
             const data=await response.json();
@@ -168,7 +168,13 @@
     const rub = n => new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',minimumFractionDigits:0,maximumFractionDigits:2}).format(n);
     const money = n => scopeDomestic()?rub(n):usd(n);
     let usdRub = null, fxDate = '', fxKind = 'none', fxRequest = false;
-    const fxSub = n => usdRub ? (scopeDomestic()?usd(n/usdRub):rub(n*usdRub)) : null;
+    const fxSub = n => {
+        if(!usdRub)return null;
+        const converted=scopeDomestic()?n/usdRub:n*usdRub;
+        // Do not format a currency conversion whose cents cannot be represented safely.
+        return Number.isFinite(converted) && Number.isSafeInteger(Math.round(converted*100))
+            ? (scopeDomestic()?usd(converted):rub(converted)) : null;
+    };
     const rateModel = mode => scopeDomestic()?DOMESTIC_RATES[mode]:RATES[mode];
     const defaultTariff = (mode,weight) => scopeDomestic() && mode==='road' ?
         roadRateValue(mode) : rateModel(mode).tkm;
@@ -494,7 +500,7 @@
     let manuallyChangedTerm = false;
     function calcNumber(id){return Number($(id).value);}
     function inputError(){
-        const fields=[['weight','Вес груза'],['distance','Расстояние'],['tariff','Ставка'],['cargo-value','Стоимость груза']];
+        const fields=[['weight','Масса партии'],['distance','Расстояние'],['tariff','Ставка'],['cargo-value','Стоимость груза']];
         if(scopeDomestic() && state.mode==='road')fields.push(...ROAD_EXPENSES.map(({id,name})=>[id,name]));
         for(const [id,label] of fields){
             const field=$(id),raw=field.value.trim();
@@ -506,7 +512,10 @@
             if(min!==null && Number.isFinite(min) && value<min)return label+': значение должно быть не меньше '+min.toLocaleString('ru-RU')+'.';
             if(max!==null && Number.isFinite(max) && value>max)return label+': значение должно быть не больше '+max.toLocaleString('ru-RU')+'.';
         }
-        return '';
+        // Check the actual monetary result, not an arbitrary tonnage ceiling.
+        // A scenario bypasses hasValidInput inside estimateValues, avoiding recursion.
+        const scenario={weight:calcNumber('weight'),distance:calcNumber('distance'),rate:calcNumber('tariff'),declaredValue:calcNumber('cargo-value'),mode:state.mode,cargo:$('cargo').value};
+        return estimateValues(state.term,scenario)?'':'Слишком большие значения для точного денежного расчёта. Разделите партию на меньшие части или уменьшите параметры.';
     }
     function hasValidInput(){return !inputError();}
     function recTerm(){
@@ -613,10 +622,13 @@
             ...(customs?[{name:'Услуги по импортному оформлению (без пошлин)',price:importAdmin,owner:t.import}]:[]),
             ...(insurance>0?[{name:intl?'Страхование по базису':'Добровольное страхование груза (модель)',price:insurance,owner:intl?t.insurance:A}]:[])
         ].filter(x=>x.price>0).map(x=>({...x,price:Math.round(x.price*100)/100}));
+        if(!Number.isFinite(main) || !Number.isSafeInteger(Math.round(main*100)) ||
+           items.some(x=>!Number.isFinite(x.price) || !Number.isSafeInteger(Math.round(x.price*100))))return null;
         // Round each visible item to cents before summing. This keeps table, payer totals
         // and final result exactly consistent even for fractional handling multipliers.
         const totalCents=items.reduce((sum,x)=>sum+Math.round(x.price*100),0);
         const sellerCents=items.filter(x=>x.owner===A).reduce((sum,x)=>sum+Math.round(x.price*100),0);
+        if(!Number.isSafeInteger(totalCents) || !Number.isSafeInteger(sellerCents))return null;
         return {items,total:totalCents/100,seller:sellerCents/100,buyer:(totalCents-sellerCents)/100,main,route};
     }
 
@@ -999,6 +1011,8 @@
     }
     function renderEstimate(){
         updateTariffUi();
+        // Route and delivery responsibilities must also update while numbers are invalid.
+        if(scopeDomestic())renderDomesticTerms();
         const root=$('estimate-result');
         root.replaceChildren();
         const route=currentRoute();
@@ -1067,7 +1081,6 @@
         const caution=document.createElement('p');caution.className='estimate-sub';
         caution.textContent=scopeDomestic()?'Внутренняя перевозка: таможенные расходы не применяются. Распределение расходов показано как пример и определяется договором. НДС, стоимость товара и специальные сборы не учтены; суммы не являются котировкой.':'ВЭД: Incoterms распределяет задачи, затраты и риски, но не определяет рыночную цену перевозки. Таможенные пошлины, налоги, стоимость товара и специальные сборы не включены; суммы не являются котировкой.';
         root.append(caution);
-        if(scopeDomestic())renderDomesticTerms();
         renderEtaPanel();
         renderTransportComparison();
     }
