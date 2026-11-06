@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f0f1eb"><meta name="description" content="Условия перевозки: предварительный расчёт стоимости, сроков и условий доставки по России и ВЭД."><title>Условия перевозки — расчёт доставки</title><script src="./theme.js?v=15"></script><link rel="stylesheet" href="./style.css?v=15"></head>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f0f1eb"><meta name="description" content="Условия перевозки: предварительный расчёт стоимости, сроков и условий доставки по России и ВЭД."><title>Условия перевозки — расчёт доставки</title><script src="./theme.js?v=16"></script><link rel="stylesheet" href="./style.css?v=16"></head>
 <body>
-<header><div class="top"><a class="logo" href="#" aria-label="Условия перевозки — начало"><span class="brand-symbol" aria-hidden="true">↗</span>Условия перевозки</a><div class="header-controls"><nav class="top-links" aria-label="Разделы страницы"><a href="#configurator">Расчёт</a><a href="#transport-comparison">Варианты</a><a href="#comparison" id="incoterms-nav-link" hidden>Incoterms</a></nav><label class="theme-control"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><select id="theme-select" aria-label="Тема интерфейса"><option value="system">Как на устройстве</option><option value="light">Светлая</option><option value="dark">Тёмная</option></select></label></div></div></header>
-<section class="hero"><div class="hero-inner"><p class="eyebrow">ЛОГИСТИКА · РОССИЯ И ВЭД</p><h1>Рассчитайте перевозку</h1><p class="hero-lead" id="hero-lead">Маршрут, стоимость и условия перевозки — в одном расчёте.</p><span class="prototype-tag">Портфолио-прототип · справочные расчёты</span></div></section>
+<header><div class="top"><a class="logo" href="#" aria-label="Условия перевозки — начало"><span class="brand-symbol" aria-hidden="true">↗</span>Условия перевозки</a><div class="header-controls"><nav class="top-links" aria-label="Разделы страницы"><a href="#configurator">Расчёт</a><a href="#transport-comparison">Варианты</a><a href="#comparison" id="incoterms-nav-link" hidden>Incoterms</a></nav><label class="theme-control" title="Выбрать тему"><svg class="theme-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M12 4v16"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" stroke="none"/></svg><select id="theme-select" aria-label="Тема интерфейса"><option value="system">Как на устройстве</option><option value="light">Светлая</option><option value="dark">Тёмная</option></select></label></div></div></header>
+<section class="hero"><div class="hero-inner"><h1>Рассчитайте перевозку</h1><p class="hero-lead" id="hero-lead">Маршрут, стоимость и условия перевозки — в одном расчёте.</p></div></section>
 <main>
 <div class="columns" id="configurator">
-<section class="panel config-panel" aria-labelledby="form-title"><div class="section-heading"><span class="section-number">01</span><div><h2 class="panel-title" id="form-title">Маршрут и груз</h2><p class="panel-sub">Изменяйте параметры — результат обновится автоматически.</p></div></div>
+<section class="panel config-panel" aria-labelledby="form-title"><div class="section-heading"><div><h2 class="panel-title" id="form-title">Маршрут и груз</h2></div></div>
 <div class="scope-panel" aria-labelledby="scope-title">
         <div class="scope-head" id="scope-title">Тип поставки</div>
         <div class="scope-tabs" id="scope-tabs" role="group" aria-label="Тип поставки">
@@ -15,10 +15,10 @@
         <p id="scope-explainer" class="scope-explainer">Расчёт перевозки внутри России — без таможенных процедур и обязательного применения Incoterms.</p>
       </div>
 <div class="route-inputs"><div class="frow">
-        <label class="field">Пункт отправления<input id="origin" class="input" value="Новороссийск" maxlength="90" autocomplete="off"></label>
-        <label class="field">Пункт назначения<input id="destination" class="input" value="Александрия" maxlength="90" autocomplete="off"></label>
+        <label class="field">Откуда<input id="origin" class="input" value="Новороссийск" maxlength="90" autocomplete="off"></label>
+        <label class="field">Куда<input id="destination" class="input" value="Александрия" maxlength="90" autocomplete="off"></label>
       </div></div>
-<details class="disclosure preset-disclosure"><summary>Выбрать маршрут из примеров</summary><div class="disclosure-body"><label class="field field-full">Маршрут из примеров
+<details class="disclosure preset-disclosure"><summary>Примеры маршрутов</summary><div class="disclosure-body"><label class="field field-full">Маршрут из примеров
           <select class="input" id="route-preset">
             <option value="nov-alex">Новороссийск → Александрия</option>
             <option value="msk-kras">Москва → Краснодар</option>
@@ -38,13 +38,13 @@
         </div></div>
 <div class="frow cargo-row"><label class="field" id="cargo-field">Тип груза<select class="input" id="cargo">
           <option value="bulk">Зерно / навал</option><option value="container">Контейнерный</option><option value="general" selected>Штучный груз</option><option value="liquid">Наливной</option>
-        </select></label><label class="field"><span class="calc-label">Масса партии, тонн</span><input class="input" id="weight" type="number" value="20" min="0.1" step="0.1" inputmode="decimal"></label></div>
+        </select></label><label class="field"><span class="calc-label">Масса, т</span><input class="input" id="weight" aria-label="Масса партии, тонн" type="number" value="20" min="0.1" step="0.1" inputmode="decimal"></label></div>
 <label class="field" id="handover-field">Место передачи для морских базисов<select class="input" id="handover">
           <option value="onboard">На борту судна</option><option value="alongside">Вдоль борта судна</option><option value="terminal">Перевозчику / терминалу</option>
         </select><small id="handover-hint">Уточняет применимость морских правил.</small></label>
-<div class="form-separator"></div><div class="section-heading small"><span class="section-number">02</span><h2 class="panel-title">Данные для расчёта</h2></div>
-<div class="calc-grid"><label class="field"><span class="calc-label">Расстояние по маршруту, км</span><input class="input" id="distance" type="number" value="2800" min="1" max="50000" step="1" inputmode="numeric" aria-describedby="distance-hint"></label><label class="field"><span class="calc-label" id="tariff-label">Расчётная ставка, ₽/маш·км</span><input class="input" id="tariff" type="number" value="124.4" min="0.001" max="100000" step="0.001" inputmode="decimal"></label></div>
-<details class="disclosure road-disclosure"><summary>Расстояние по автодорогам</summary><div class="disclosure-body"><p class="distance-hint" id="distance-hint" role="status" aria-live="polite">Ориентир по выбранному маршруту. Значение можно изменить вручную.</p><div class="route-verification" id="road-route-block" hidden>
+<div class="form-separator"></div>
+<div class="calc-grid"><label class="field"><span class="calc-label">Расстояние, км</span><input class="input" id="distance" type="number" value="2800" min="1" max="50000" step="1" inputmode="numeric" aria-describedby="distance-hint"></label><label class="field"><span class="calc-label" id="tariff-label">Расчётная ставка, ₽/маш·км</span><input class="input" id="tariff" type="number" value="124.4" min="0.001" max="100000" step="0.001" inputmode="decimal"></label></div>
+<details class="disclosure road-disclosure"><summary>Уточнить расстояние</summary><div class="disclosure-body"><p class="distance-hint" id="distance-hint" role="status" aria-live="polite">Ориентир по выбранному маршруту. Значение можно изменить вручную.</p><div class="route-verification" id="road-route-block" hidden>
           <button type="button" id="road-route-btn" class="road-route-btn">Пересчитать по автодорогам</button>
           <span class="road-route-status" id="road-route-status" role="status" aria-live="polite">Для известных городов расстояние и время определяются автоматически. Результат можно изменить вручную.</span>
           <a class="road-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">Картографические данные © OpenStreetMap</a>
@@ -57,7 +57,7 @@
             <option value="door">Продавец доставляет груз до места назначения</option>
           </select>
         </label></div>
-<details class="disclosure" id="incoterms-select" hidden><summary>Выбрать базис Incoterms вручную</summary>
+<details class="disclosure advanced-settings"><summary>Дополнительные настройки</summary><div class="advanced-body"><details class="disclosure" id="incoterms-select" hidden><summary>Выбрать базис Incoterms вручную</summary>
       <div class="divider"></div>
       <h2 class="panel-title">Базис Incoterms 2020</h2>
       <p class="panel-sub" style="margin-bottom:16px">Доступность базиса зависит от транспорта и того, где груз передают перевозчику.</p>
@@ -68,8 +68,8 @@
       <div class="terms-grid" id="sea-terms" role="group" aria-label="Морские базисы"></div>
       <p class="term-guide">* Для контейнеров, передаваемых на терминале до погрузки, обычно предпочтительнее FCA, CPT или CIP. Даже при морском маршруте FOB/CFR/CIF не всегда подходят.</p>
       </details>
-<details class="disclosure"><summary>Стоимость груза и оформление</summary><div class="disclosure-body"><label class="field"><span class="calc-label" id="cargo-value-label">Стоимость груза, ₽</span><input class="input" id="cargo-value" type="number" value="3000000" min="0" max="1000000000" step="100" inputmode="decimal"></label><label class="estimate-disclaimer" id="customs-row" hidden><input type="checkbox" id="customs-applicable" checked> Добавить учебные расходы на экспортное и импортное оформление, если применимо</label><p class="estimate-disclaimer" id="customs-hint" hidden>Для отдельных торговых направлений, включая часть операций внутри ЕАЭС, эти процедуры могут не требоваться. Пошлины и НДС калькулятор не рассчитывает.</p></div></details>
-<details class="disclosure"><summary>Источник ставки, курс и дополнительные расходы</summary><div class="disclosure-body"><div class="market-panel" aria-label="Ставки и курс валют">
+<details class="disclosure"><summary>Груз и оформление</summary><div class="disclosure-body"><label class="field"><span class="calc-label" id="cargo-value-label">Стоимость груза, ₽</span><input class="input" id="cargo-value" type="number" value="3000000" min="0" max="1000000000" step="100" inputmode="decimal"></label><label class="estimate-disclaimer" id="customs-row" hidden><input type="checkbox" id="customs-applicable" checked> Добавить учебные расходы на экспортное и импортное оформление, если применимо</label><p class="estimate-disclaimer" id="customs-hint" hidden>Для отдельных торговых направлений, включая часть операций внутри ЕАЭС, эти процедуры могут не требоваться. Пошлины и НДС калькулятор не рассчитывает.</p></div></details>
+<details class="disclosure"><summary>Ставка и доплаты</summary><div class="disclosure-body"><div class="market-panel" aria-label="Ставки и курс валют">
           
           <div id="market-rate-controls" class="market-rate-controls" hidden>
             <label class="field"><span>Выберите опубликованный ориентир (тент, фура 20 т)</span>
@@ -97,9 +97,9 @@
           <p id="fx-status" class="market-note" role="status" aria-live="polite">Загрузка курса…</p>
           <p class="market-note fx-explainer">Курс получен через <a href="https://www.cbr-xml-daily.com/" target="_blank" rel="noopener noreferrer">открытое JSON-зеркало</a>. Прямых онлайн-котировок перевозчиков нет.</p>
         </div></div></details>
-<a class="mobile-result-link" href="#result-panel">Перейти к результату <span aria-hidden="true">↘</span></a>
+</div></details><a class="mobile-result-link" href="#result-panel">Показать результат <span aria-hidden="true">↘</span></a>
 </section>
-<section class="panel result-panel" id="result-panel" aria-labelledby="estimate-title"><div class="result-eyebrow">ВАШ РАСЧЁТ</div><h2 class="panel-title" id="estimate-title">Предварительная стоимость</h2><p class="result-caption">Перевозка и сопутствующие расходы</p><div class="estimate-result" id="estimate-result" aria-live="polite"></div><section class="eta-panel" id="eta-panel" aria-labelledby="eta-title"><div class="eta-heading"><h3 id="eta-title">Срок доставки</h3><span class="eta-kind">Ориентировочный срок</span></div><div class="eta-result" id="eta-result" role="status" aria-live="polite"></div><label class="field carrier-eta-field" id="carrier-eta-field" hidden><span>Срок по предложению перевозчика, суток</span><input id="carrier-eta-days" class="input" type="number" min="0.25" max="180" step="0.25" inputmode="decimal" placeholder="Введите срок"></label><div id="eta-road-options" hidden><details class="disclosure"><summary>Настроить расчёт срока</summary><div class="disclosure-body">
+<section class="panel result-panel" id="result-panel" aria-labelledby="estimate-title"><h2 class="panel-title" id="estimate-title">Стоимость доставки</h2><div class="estimate-result" id="estimate-result" aria-live="polite"></div><section class="eta-panel" id="eta-panel" aria-labelledby="eta-title"><div class="eta-heading"><h3 id="eta-title">Срок доставки</h3></div><div class="eta-result" id="eta-result" role="status" aria-live="polite"></div><label class="field carrier-eta-field" id="carrier-eta-field" hidden><span>Срок по предложению перевозчика, суток</span><input id="carrier-eta-days" class="input" type="number" min="0.25" max="180" step="0.25" inputmode="decimal" placeholder="Введите срок"></label><div id="eta-road-options" hidden><details class="disclosure"><summary>Настроить расчёт срока</summary><div class="disclosure-body">
             <p class="eta-explain">Для внутрироссийской фуры с одним водителем: время по дорогам, перерывы и отдых, подготовка, погрузка и разгрузка. Значения можно уточнить по условиям рейса.</p>
             <div class="eta-grid">
               <label class="field"><span>Средняя скорость грузовика, км/ч</span><input class="input" id="eta-speed" type="number" min="25" max="90" step="5" value="65" inputmode="numeric"></label>
@@ -109,15 +109,15 @@
               <label class="field eta-wide"><span>Дополнительный резерв на задержки, ч</span><input class="input" id="eta-buffer" type="number" min="0" max="168" step="1" value="12" inputmode="decimal"></label>
             </div>
             <p class="eta-legal">Внутри России учитываем модель с 9 ч вождения за день, перерывом 45 мин после 4,5 ч и межсменным отдыхом 11 ч. Для международных рейсов нужен отдельный график. <a href="https://www.consultant.ru/document/cons_doc_LAW_534382/ccd9e7b88542d83c4685823cb2399172b14baac6/" target="_blank" rel="noopener noreferrer">Приказ Минтранса № 160</a>.</p>
-          </div><div id="eta-calculation-details"></div></details></div></section><p class="result-footnote">Опубликованный ориентир или учебная модель — источник указан в подробностях. Итоговую цену и срок подтвердит перевозчик.</p><a class="result-more" href="#transport-comparison">Сравнить варианты <span aria-hidden="true">→</span></a><button class="copy-result" id="copy-result" type="button" style="margin-top:10px">Скопировать расчёт</button></section>
+          </div><div id="eta-calculation-details"></div></details></div></section><p class="result-footnote">Цену и срок подтвердит перевозчик.</p><a class="result-more" href="#transport-comparison">Сравнить варианты <span aria-hidden="true">→</span></a><button class="copy-result" id="copy-result" type="button" style="margin-top:10px">Скопировать расчёт</button></section>
 </div>
 <section class="panel transport-comparison" id="transport-comparison" aria-labelledby="transport-compare-title">
     <div class="transport-compare-header">
       <div>
-        <h2 id="transport-compare-title">Сравнение вариантов перевозки</h2>
+        <h2 id="transport-compare-title">Варианты перевозки</h2>
         <p class="transport-compare-subtitle" id="transport-context">Расходы и сроки по учебной модели</p>
       </div>
-      <span class="estimate-pill">Расчётные сценарии</span>
+      
     </div>
     <div id="transport-comparison-result" aria-live="polite"></div>
   </section>
@@ -149,5 +149,5 @@
     <div class="compare-cards" id="comparison-cards"></div>
   </details>
 <details class="methodology"><summary>О расчётах и ограничениях</summary><aside class="note-footer" id="legal-footer"><b>Обратите внимание.</b> Опубликованные ориентиры цен не равны предложению на конкретный рейс. Другие цены, сроки и варианты могут быть учебными; смотрите источник рядом с результатом. НДС, пошлины, санкционные, разрешительные и специальные сборы не включены. Внутренние поставки и ВЭД имеют разные юридические сценарии. Подробнее: <a href="https://iccwbo.org/business-solutions/incoterms-rules/" target="_blank" rel="noopener noreferrer">ICC — Incoterms®</a>, <a href="https://www.consultant.ru/document/cons_doc_LAW_9027/e93c3cec8d1a1857e94f41c190a0ff38efd98968/" target="_blank" rel="noopener noreferrer">ст. 458 ГК РФ</a>.</aside></details>
-</main><footer class="foot"><span>Условия перевозки</span><span>Россия · ВЭД · Incoterms 2020</span></footer>
-<div class="alertbar hidden" id="toast" role="status" aria-live="polite"></div><script src="./app.js?v=15" defer></script></body></html>
+</main><footer class="foot"><span>Условия перевозки</span><span>Портфолио · расчётный прототип</span></footer>
+<div class="alertbar hidden" id="toast" role="status" aria-live="polite"></div><script src="./app.js?v=16" defer></script></body></html>

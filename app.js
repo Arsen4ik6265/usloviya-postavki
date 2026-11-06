@@ -139,7 +139,7 @@
         ROAD_EXPENSES.forEach(({id})=>{$(id).disabled=false;});
     }
     function updateTariffUi(){
-        $('tariff-label').textContent='Расчётная ставка, '+tariffUnits();
+        $('tariff-label').textContent='Ставка, '+tariffUnits();
         $('cargo-value-label').textContent='Стоимость груза, '+(scopeDomestic()?'₽':'USD');
         populateMarketOptions();
         const info=$('rate-source');
@@ -270,11 +270,11 @@
         $('comparison').hidden=scopeDomestic();
         $('domestic-info').hidden=!scopeDomestic();
         $('incoterms-nav-link').hidden=scopeDomestic();
-        $('delivery-goal-label').textContent=scopeDomestic()?'Кто организует и оплачивает доставку?':'Какое условие поставки нужно?';
+        $('delivery-goal-label').textContent=scopeDomestic()?'Кто оплачивает доставку?':'Условия поставки';
         $('copy-result').textContent=scopeDomestic()?'Скопировать расчёт':'Скопировать условия';
         $('hero-lead').textContent=scopeDomestic()
-          ? 'Введите маршрут и груз — сравните стоимость и срок доставки.'
-          : 'Выберите маршрут, груз и условия поставки Incoterms 2020.';
+          ? 'Стоимость, сроки и условия доставки.'
+          : 'Стоимость и условия международной доставки.';
         const goal=$('delivery-goal'),previous=goal.value;
         goal.replaceChildren();
         Object.entries(scopeDomestic()?DOMESTIC_GOALS:INTL_GOALS).forEach(([value,label])=>{
@@ -853,7 +853,7 @@
         }
         const summary=document.createElement('p');summary.className='mode-compare-disclaimer';
         summary.textContent=scenarioRoute ? (scopeDomestic()?'Расчётные сценарии по выбранному маршруту. Источник цены и срока указан в подробностях каждого варианта.':'Стоимость по ВЭД — учебная модель. Сроки указываются по предложениям перевозчиков.') : 'Для своего маршрута показан только выбранный вид транспорта. Для сравнения нескольких видов выберите маршрут из примеров.';
-        root.append(summary);
+        // Extended explanation is available below the comparison.
         if(rows.length>1){
             const winners=transportWinners(rows);
             const panels=document.createElement('div');panels.className='mode-winners';
@@ -882,12 +882,12 @@
             if(panels.childElementCount)root.append(panels);
             if(!winners.cheapest){
                 const notice=document.createElement('p');notice.className='mode-compare-notice compare-caution';
-                notice.textContent='Авто: опубликованный ориентир или ваша ставка. Другие цены — учебные. Рыночный рейтинг по этим данным недоступен.';
+                notice.textContent='Авто — опубликованная или ваша ставка. Остальные цены — учебные: выбирать самый дешёвый способ по ним нельзя.';
                 root.append(notice);
             }
             if(!winners.fastest){
                 const notice=document.createElement('p');notice.className='mode-compare-notice';
-                notice.textContent='Для сравнения сроков добавьте данные хотя бы двух видов транспорта.';
+                notice.textContent='Добавьте сроки перевозчиков, чтобы сравнить скорость доставки.';
                 root.append(notice);
             }
         }
@@ -898,7 +898,7 @@
         }
         const plot=document.createElement('div');plot.className='mode-chart';
         const head=document.createElement('div');head.className='mode-chart-head';
-        const headTitle=document.createElement('h3');headTitle.textContent='Сравнение сценариев (модель)';
+        const headTitle=document.createElement('h3');headTitle.textContent='Стоимость и сроки';
         const switches=document.createElement('div');switches.className='mode-chart-tabs';switches.setAttribute('role','group');switches.setAttribute('aria-label','Что показать на графике');
         [['cost','Стоимость'],['time','Срок']].forEach(([value,label])=>{
             const button=document.createElement('button');button.type='button';button.textContent=label;
@@ -998,7 +998,7 @@
         root.append(cards);
         const foot=document.createElement('p');foot.className='mode-compare-disclaimer';
         foot.textContent='Время OSRM рассчитано для автомобильных дорог, не специально для грузовиков. Сроки других видов транспорта требуют данных перевозчика. Модельные цены не являются предложениями; инфраструктура и доступность рейсов не проверяются.';
-        root.append(foot);
+        const methodology=document.createElement('details');methodology.className='disclosure comparison-methodology';const methodLabel=document.createElement('summary');methodLabel.textContent='Как сравниваются варианты';methodology.append(methodLabel,summary,foot);root.append(methodology);
     }
 
     function renderDomesticTerms(){
@@ -1057,7 +1057,7 @@
         const sum=document.createElement('div');sum.className='estimate-value';sum.textContent=money(estimate.total);
         const subFx=fxSub(estimate.total);
         if(subFx){const converted=document.createElement('div');converted.className='estimate-converted';converted.textContent='Справочно: '+subFx;root.append(converted);}
-        const sumLabel=document.createElement('p');sumLabel.className='estimate-sub';sumLabel.textContent=scopeDomestic()?(state.mode==='road'?'Ориентировочная стоимость по опубликованной/введённой ставке, без неуказанных услуг и таможенных статей':'Сумма условных расходов по внутренней перевозке, без таможенных статей'):'Сумма моделируемых транспортных и сопутствующих расходов · выбран базис '+state.term;
+        const sumLabel=document.createElement('p');sumLabel.className='estimate-sub';sumLabel.textContent=scopeDomestic()?(state.mode==='road'?'По выбранной ставке · без неуказанных услуг':'Учебный расчёт · без таможенных расходов'):'Учебная модель расходов';
         const range=document.createElement('p');range.className='estimate-sub';
         const marketChoices=marketQuotesForRoute();
         if(scopeDomestic() && state.mode==='road'){

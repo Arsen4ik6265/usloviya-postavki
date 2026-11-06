@@ -1375,3 +1375,22 @@ summary,summary::after,.preset-disclosure summary,.road-disclosure summary{color
 :root{--control-line:#85917f}:root[data-theme=dark]{--control-line:#71816c}
 .input,.theme-control select,.mode-eta-input input,.copy-result,.road-route-btn,.fx-refresh{border-color:var(--control-line)}
 .alertbar{background:var(--surface-alt);color:var(--ink);border:1px solid var(--line);box-shadow:none}
+
+/* v16 — less reading, clearer form, native accessible theme picker. */
+.theme-control{position:relative;display:grid;place-items:center;width:44px;height:44px;border:1px solid var(--line);border-radius:50%;color:var(--ink);cursor:pointer;flex-shrink:0}
+.theme-control .theme-icon{display:block;width:21px;height:21px;pointer-events:none}
+.theme-control select{position:absolute;inset:0;width:100%;height:100%;max-width:none;min-height:44px;padding:0;opacity:0;cursor:pointer}
+.theme-control:focus-within{outline:2px solid var(--focus);outline-offset:3px}.theme-control:hover{background:var(--surface-alt)}
+.hero-inner{padding-top:30px;padding-bottom:24px}h1{margin-bottom:9px}.hero-lead{margin:0;font-size:14px}
+.section-heading{margin-bottom:18px}.result-panel>.panel-title{font-size:16px;color:var(--muted);font-weight:500;margin-bottom:17px}
+.config-panel>.form-separator{margin:20px 0}.cargo-row{align-items:start;grid-template-columns:minmax(0,1fr) minmax(105px,.65fr)}
+.cargo-row .field{display:flex;flex-direction:column;gap:8px}.cargo-row .input{margin:0}.cargo-row .calc-label{display:block}
+.advanced-settings{margin-top:18px;border-bottom:1px solid var(--line)}.advanced-settings>summary{font-size:14px;color:var(--muted)}
+.advanced-body{padding:0 13px 8px;border-left:2px solid var(--line)}.advanced-body .disclosure>summary{font-size:12px}
+.estimate-sub{font-size:12px}.result-condition{margin:8px 0 18px}.result-footnote{margin:15px 0 12px;font-size:12px}
+.estimate-converted{margin-bottom:10px}.comparison-methodology{margin-top:15px}.comparison-methodology>summary{font-size:12px;color:var(--muted)}
+.mode-compare-notice{background:transparent;border:0;border-left:2px solid var(--line);border-radius:0;padding:5px 12px;margin:12px 0;font-size:12px}
+.mode-compare-notice.compare-caution{background:transparent;border:0;border-left:2px solid var(--warning-line);border-radius:0;color:var(--muted);padding:5px 12px}
+@media(max-width:760px){.top{padding:11px 18px;gap:14px}.logo{font-size:16px}.theme-control .theme-icon{display:block}.theme-control select{max-width:none;font-size:16px}.hero-inner{padding:23px 18px 20px}h1{font-size:29px}.hero-lead{font-size:13px}.section-heading{margin-bottom:18px}.config-panel .panel-title{font-size:18px}.cargo-row{grid-template-columns:minmax(0,1fr) minmax(94px,.62fr);gap:12px}.cargo-row .input{height:46px}.cargo-row .field,.cargo-row .calc-label{font-size:12px}.mobile-result-link{left:auto;right:18px;width:auto;min-width:143px;padding:12px 17px;gap:24px;border-radius:5px;font-size:13px;bottom:calc(14px + env(safe-area-inset-bottom))}.result-panel{padding:22px}.estimate-value{font-size:43px}.result-panel>.panel-title{margin-bottom:14px}.eta-value{font-size:30px}.eta-heading{margin-bottom:7px}.goal-field{margin-top:14px}.advanced-settings>summary{font-size:13px}.foot{font-size:11px}}
+@media(max-width:380px){.top{padding:10px 15px}.logo{font-size:15px}.theme-control{width:44px;height:44px}.hero-inner{padding-top:20px}h1{font-size:28px}.cargo-row{grid-template-columns:minmax(0,1fr) minmax(85px,.6fr);gap:10px}.estimate-value{font-size:37px}}
+@media(max-width:760px){body{padding-bottom:0}.mobile-result-link,.result-visible .mobile-result-link{display:flex;position:static;width:100%;margin:20px 0 0;justify-content:space-between;padding:13px 16px;font-size:14px;box-shadow:none}}
