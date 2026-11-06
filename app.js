@@ -67,7 +67,7 @@
             const ctrl=new AbortController();
             const timeout=setTimeout(()=>ctrl.abort(),5000);
             let response;
-            try{ response=await fetch('./tariffs.json?v=13', {cache:'no-store',signal:ctrl.signal}); }
+            try{ response=await fetch('./tariffs.json?v=13.2', {cache:'no-store',signal:ctrl.signal}); }
             finally{clearTimeout(timeout);}
             if(!response.ok)throw new Error('HTTP '+response.status);
             const data=await response.json();
@@ -493,7 +493,22 @@
 
     let manuallyChangedTerm = false;
     function calcNumber(id){return Number($(id).value);}
-    function hasValidInput(){return [calcNumber('weight'),calcNumber('distance'),calcNumber('tariff')].every(x=>Number.isFinite(x)&&x>0)&&calcNumber('cargo-value')>=0;}
+    function inputError(){
+        const fields=[['weight','Вес груза'],['distance','Расстояние'],['tariff','Ставка'],['cargo-value','Стоимость груза']];
+        if(scopeDomestic() && state.mode==='road')fields.push(...ROAD_EXPENSES.map(({id,name})=>[id,name]));
+        for(const [id,label] of fields){
+            const field=$(id),raw=field.value.trim();
+            // Optional extra expenses may be empty: no extra charge was entered.
+            if(raw==='' && ROAD_EXPENSES.some(item=>item.id===id))continue;
+            const value=Number(raw);
+            if(raw==='' || !Number.isFinite(value))return label+': введите число.';
+            const min=field.min===''?null:Number(field.min),max=field.max===''?null:Number(field.max);
+            if(min!==null && Number.isFinite(min) && value<min)return label+': значение должно быть не меньше '+min.toLocaleString('ru-RU')+'.';
+            if(max!==null && Number.isFinite(max) && value>max)return label+': значение должно быть не больше '+max.toLocaleString('ru-RU')+'.';
+        }
+        return '';
+    }
+    function hasValidInput(){return !inputError();}
     function recTerm(){
         const goal = $('delivery-goal').value;
         const marine = state.mode === 'sea';
@@ -671,6 +686,11 @@
         const road=state.mode==='road' && scopeDomestic();
         $('eta-road-options').hidden=!road;
         const root=$('eta-result');root.replaceChildren();
+        if(!hasValidInput()){
+            const note=document.createElement('p');note.className='eta-note';
+            note.textContent='Для расчёта срока уточните параметры: '+inputError();
+            root.append(note);return;
+        }
         if(!road){
             const eta=etaForScenario(state.mode,calcNumber('distance'));
             if(Number.isFinite(eta.days)){
@@ -749,6 +769,7 @@
         return 'model';
     }
     function transportScenarios(){
+        if(!hasValidInput())return [];
         const route=currentRoute();
         const modes=route ? Object.keys(route.modes) : [state.mode];
         const weight=calcNumber('weight'),declaredValue=calcNumber('cargo-value');
@@ -807,7 +828,7 @@
         $('transport-context').textContent=comparisonContext();
         if (!rows.length){
             const empty=document.createElement('p');empty.className='mode-compare-empty';
-            empty.textContent='Для сравнения нужны положительные вес и стоимость груза, а также расстояние и тариф. Проверьте параметры расчёта.';
+            empty.textContent=inputError() || 'Для сравнения проверьте параметры расчёта: вес, расстояние, ставку и стоимость груза.';
             root.append(empty);return;
         }
         const summary=document.createElement('p');summary.className='mode-compare-disclaimer';
@@ -984,7 +1005,7 @@
         const rec=scopeDomestic()?null:recTerm();
         if(!hasValidInput()){
             const error=document.createElement('div');error.className='estimate-empty';
-            error.textContent='Укажите положительные вес, расстояние и ставку. Если опубликованных тарифов для груза или маршрута нет, внесите полученную от перевозчика ставку вручную. Стоимость груза не должна быть отрицательной.';
+            error.textContent=inputError();
             root.append(error);renderTransportComparison();renderEtaPanel();return;
         }
         const estimate=estimateValues(state.term);
