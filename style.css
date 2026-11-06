@@ -1218,3 +1218,106 @@ body.scope-domestic .fx-line,body.scope-domestic #fx-status,body.scope-domestic 
 .mode-chart-fill.mode-chart-outlier{background:repeating-linear-gradient(135deg,#9eafba 0,#9eafba 7px,#dce6e8 7px,#dce6e8 14px)}
 .mode-compare-notice.compare-caution{background:#fff8ed;border:1px solid #e9d6b8;border-radius:9px;padding:12px 14px;color:#694e31}
 
+
+/* v14: focused calculator layout; all business rules remain in app.js. */
+:root{--navy:#192b49;--ink:#1d2c43;--muted:#67758a;--line:#e0e5ed;--bg:#f5f6f8;--teal:#355ad7;--mint:#eaf0ff;--shadow:0 4px 20px #1d2c4305;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+body{background:var(--bg);font-size:15px;line-height:1.5}
+header{background:#fff;color:var(--ink);border-bottom:1px solid var(--line)}
+.top{max-width:1280px;padding:19px 28px;gap:24px}
+.logo{display:flex;gap:10px;align-items:center;font-size:18px;font-weight:760;text-decoration:none;letter-spacing:-.04em}
+.brand-symbol{display:grid;place-items:center;width:33px;height:33px;background:#355ad7;color:white;border-radius:10px;font-size:23px}
+.top-links{gap:26px;color:#56647a;font-size:13px}
+.hero{background:transparent;color:var(--ink);overflow:visible}.hero:before{display:none}
+.hero-inner{max-width:1280px;padding:36px 28px 30px}
+.eyebrow{font-size:10px;letter-spacing:.15em;color:#667999;margin:0 0 11px}
+h1{font-size:clamp(29px,4vw,43px);font-weight:740;line-height:1.14;letter-spacing:-.045em;margin:0 0 12px}
+.hero-lead{max-width:720px;font-size:15px;line-height:1.6;font-weight:400;color:#67758a;margin:0 0 13px}
+.prototype-tag{display:inline-block;font-size:11px;color:#6c798b;background:#edf0f5;border:1px solid #e2e7ee;border-radius:5px;padding:4px 8px}
+main{max-width:1280px;padding:0 28px 55px;margin:0 auto}
+.columns{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:24px;align-items:start;scroll-margin-top:20px}
+.panel{padding:26px;border-radius:16px;border:1px solid var(--line);box-shadow:var(--shadow)}
+.columns>.panel{margin:0}.panel-title{font-size:19px;line-height:1.3;letter-spacing:-.025em;margin:0}
+.panel-sub{font-size:12px;margin:5px 0 0;line-height:1.6;color:var(--muted)}
+.section-heading{display:flex;align-items:center;gap:12px;margin:0 0 22px}
+.section-number{display:grid;place-items:center;border-radius:9px;background:#eef2fa;color:#5b70a0;font-size:11px;font-weight:750;min-width:33px;height:33px}
+.section-heading.small{margin-bottom:17px}.section-heading.small h2{font-size:15px}
+.scope-panel{border:0;background:transparent;padding:0;margin:0 0 23px}.scope-head,.scope-explainer{display:none}
+.scope-tabs{border:1px solid #e1e6ee;background:#f1f3f7;border-radius:10px;gap:4px;padding:4px}
+.scope-tabs button{border:0;background:transparent;border-radius:7px;padding:11px 8px;color:#64738b;font-size:13px;font-weight:650;line-height:1.3}
+.scope-tabs button[aria-pressed=true]{background:#fff;box-shadow:0 1px 5px #192b4910;color:#294ebc}
+.frow{gap:14px;margin-bottom:0}.route-inputs{margin-bottom:5px}.field{min-width:0;margin:0;gap:7px;font-size:12px;font-weight:650;color:#526079}
+.field>span,.calc-label{min-height:0!important;font-size:12px;font-weight:650;color:#526079}
+.input{width:100%;height:47px;min-width:0;padding:11px 12px;border:1px solid #dce2eb;border-radius:9px;background:#fcfdff;color:#243249;font-size:15px;font-weight:550;box-shadow:none;line-height:1.3}
+.input:focus{border-color:#6384e8;background:#fff;outline:3px solid #355ad712;outline-offset:0}
+.input::placeholder{color:#9aa4b4;font-weight:400}
+select.input{padding-right:25px;text-overflow:ellipsis}
+.legend{font-size:12px;color:#526079;font-weight:650;margin-bottom:9px;display:block}
+.fgroup{margin:20px 0}.mode-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.mode-btn{min-height:61px;padding:10px 8px;display:flex;align-items:center;gap:8px;border:1px solid #e0e5ed;background:#fff;border-radius:9px;color:#6b7a8e;font-size:11px;line-height:1.3;box-shadow:none}
+.mode-btn span{overflow-wrap:anywhere}.mode-btn svg{width:19px;height:19px;min-width:19px;fill:currentColor}
+.mode-btn[aria-pressed=true]{color:#2d50c3;background:#f0f4ff;border:1px solid #6884dc;box-shadow:0 0 0 1px #6884dc}
+.cargo-row{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(100px,.7fr);margin-bottom:17px}
+body.scope-domestic #cargo-field{grid-column:auto}.config-panel #handover-field{margin-bottom:17px}
+.form-separator{height:1px;background:#e9edf3;margin:22px 0}
+.calc-grid{gap:14px;margin-bottom:9px;grid-template-columns:repeat(2,minmax(0,1fr))}.calc-grid .field>span{min-height:0}
+.goal-field{margin:19px 0}.goal-field select{font-size:14px}
+.disclosure,.cost-breakdown,.estimate-summary,.scenario-details{border:0;border-top:1px solid #e7ebf1;border-radius:0;padding:0;margin:0;background:transparent}
+summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:13px;font-weight:600;color:#52637c;padding:15px 0;line-height:1.4}
+summary::-webkit-details-marker{display:none}summary::after{content:'+';font-size:19px;font-weight:400;line-height:1;flex-shrink:0;color:#8291a7}
+details[open]>summary::after{content:'−'}summary:focus-visible{outline:2px solid #5b7ada;outline-offset:3px;border-radius:4px}
+.disclosure-body{padding:0 0 17px}.preset-disclosure{border-top:0}.preset-disclosure summary{justify-content:flex-start;color:#4969bf;padding:8px 0;font-size:11px;gap:8px}
+.preset-disclosure summary::after{font-size:15px}.road-disclosure{border-top:0}.road-disclosure summary{padding:8px 0;font-size:11px;color:#4969bf}
+#incoterms-select .divider{display:none}#incoterms-select{padding-bottom:0}#incoterms-select>h2{font-size:14px;margin-bottom:8px}
+.result-panel{position:sticky;top:20px;border-color:#dbe3f1;box-shadow:0 10px 32px #263d6b06;padding:27px}
+.result-eyebrow{font-size:10px;letter-spacing:.16em;color:#7384a0;font-weight:750;margin:0 0 10px}
+.result-panel>.panel-title{font-size:17px}.result-caption{font-size:12px;color:#8793a5;margin:5px 0 18px}
+.estimate-result{border:0;margin:0;padding:0}.estimate-value{font-size:clamp(30px,3.1vw,44px);font-weight:750;letter-spacing:-.05em;line-height:1.1;color:#1e345b;margin:0 0 7px;overflow-wrap:anywhere}
+.estimate-converted{font-size:13px;color:#7e8ba0;font-weight:450;margin:0 0 15px}
+.estimate-sub{font-size:11px;line-height:1.6;color:#7b8799;margin:7px 0}
+.result-condition{display:inline-block;font-size:11px;line-height:1.5;color:#3a59ad;background:#eef3ff;border-radius:6px;padding:6px 9px;margin:10px 0 19px}
+.result-panel .cost-breakdown,.result-panel .estimate-summary{padding:0;margin:0;background:transparent;border-radius:0}
+.result-panel details summary{font-size:12px;padding:14px 0;color:#5b6d89}
+.estimate-recommend{font-size:12px;color:#334b78}.estimate-reason{font-size:12px;line-height:1.6;color:#6c7b91}
+.estimate-actions button{font-size:12px;padding:10px 13px;background:#355ad7;border-radius:7px}
+.estimate-table{font-size:11px;line-height:1.5;margin:13px 0}.estimate-table th,.estimate-table td{padding:10px 4px;vertical-align:top}
+.estimate-table td:nth-child(2){font-size:10px}.estimate-totals{font-size:12px;color:#526583}
+.estimate-empty{font-size:13px;padding:13px 15px;border-radius:9px;background:#fff5ed;border-color:#f0d2b9}
+.eta-panel{border:0;border-top:1px solid #e6ebf2;border-radius:0;background:transparent;padding:19px 0 0;margin:2px 0 0}
+.eta-heading h3{font-size:13px;font-weight:650;color:#63728a}.eta-kind{font-size:9px;background:#eef2f8;color:#7f8da3;padding:4px 7px;border-radius:4px}
+.eta-value{font-size:24px;color:#284773;font-weight:720;letter-spacing:-.025em;margin:7px 0 8px}
+.eta-result p{font-size:12px;line-height:1.6;margin:7px 0 12px;color:#7b8799}
+.eta-result dl{display:none}.eta-result .eta-manual-note{display:none}#eta-road-options details{margin-top:12px}
+.eta-explain,.eta-legal{font-size:11px;line-height:1.6}.eta-grid{gap:13px}.eta-grid .field span{min-height:0}
+.carrier-eta-field{margin:12px 0 5px}.carrier-eta-field .input{max-width:100%;margin-top:7px}
+.result-footnote{font-size:10px;line-height:1.6;color:#8b96a7;margin:19px 0 16px}
+.result-more{display:flex;justify-content:space-between;gap:15px;text-decoration:none;color:#355ad7;font-weight:600;font-size:12px;padding:13px 0 0;border-top:1px solid #e7ebf1}
+.mobile-result-link{display:none}
+.market-panel{border:0;background:#f7f9fc;padding:15px;border-radius:9px;margin:0}.market-heading{display:none}
+.market-note,.fx-explainer,.road-route-status,.distance-hint{font-size:11px;line-height:1.6}.market-rate-controls{padding:0;border:0;background:transparent}
+.road-expenses{margin-top:15px}.road-expenses h3{font-size:12px}.road-expenses-grid{gap:13px}.road-expenses-grid .field>span{min-height:0}
+.road-route-btn,.fx-refresh{border:1px solid #c7d3ef;border-radius:7px;color:#4162ba;background:#fff;font-size:11px;padding:9px 12px}.road-attribution{font-size:10px}
+.transport-comparison{margin-top:26px;box-shadow:none}.transport-compare-header h2{font-size:20px}.transport-compare-subtitle{font-size:12px}
+.estimate-pill{background:#edf1f8;color:#69809c;font-size:10px;padding:5px 8px;border-radius:5px}
+.mode-compare-disclaimer{font-size:11px;line-height:1.65;color:#8590a0}.mode-compare-notice{font-size:11px;line-height:1.6;padding:11px 13px;border-radius:8px;box-shadow:none;background:#f7f9fc;border-color:#e4e9f1}
+.compare-caution{background:#faf7ee;border-color:#eee5cf;color:#8b7955}
+.mode-option-grid{gap:14px}.mode-option{border:1px solid #e0e5ef;border-radius:12px;padding:18px;background:#fff}.mode-option-active{border:1px solid #8aa0e3;box-shadow:0 0 0 1px #8aa0e333;background:#fbfcff}
+.mode-option-head strong{font-size:14px}.mode-option-tag{font-size:9px;background:#edf2ff;color:#5c78bc}.mode-option-amounts{margin:15px 0}.mode-option-amounts>b{font-size:23px;color:#243d6c}.mode-option-amounts>span{font-size:12px;color:#6c7d96}
+.scenario-details summary{font-size:11px;padding:12px 0}.scenario-details .scenario-rate-source,.mode-option dd,.mode-option dt{font-size:11px}.mode-eta-input{margin:13px 0}.mode-eta-input input{height:39px;border-radius:7px;font-size:14px}.mode-eta-input small{font-size:10px}
+.mode-select-btn{border-radius:7px;font-size:12px;border-color:#c9d5f0;color:#355ad7;background:#f4f7ff;padding:10px}.mode-select-btn:disabled{color:#8290a5;background:#f4f6fa}
+.mode-chart{border-radius:11px;border-color:#e4e9f1;background:#fff;padding:19px}.mode-chart-head h3{font-size:14px}.mode-chart-fill{background:#b4c2e9}.mode-chart-fill.selected{background:#496bd3}.mode-chart-track{background:#f1f3f8}
+.mode-chart-tabs{background:#f0f3f9;border:0}.mode-chart-tabs button{font-size:11px}.mode-chart-tabs button[aria-pressed=true]{color:#355ad7;background:#fff}.mode-chart-line{font-size:12px}
+.delivery-details{margin-top:22px;padding:0 25px}.delivery-details>summary,.comparison>summary{font-size:15px;padding:21px 0;color:#334e75}
+.delivery-details .panel{box-shadow:none;border:0;padding:0;margin:0}.delivery-details .panel>.panel-sub{margin-bottom:18px}.domestic-summary{border-color:#e2e8f2;background:#f6f8fc;border-radius:9px}.domestic-summary h3{font-size:16px}.domestic-summary .domestic-term{color:#5875ae}
+.matrix-value,.matrix-value.buyer{border-radius:6px}.comparison{margin-top:22px;padding-top:0;padding-bottom:0}.comparison .compare-head{margin-top:4px}.comparison .compare-cards{padding-bottom:25px}.comparison .panel-sub{margin-bottom:15px}
+.methodology{margin-top:20px;padding:0 5px}.methodology>summary{justify-content:flex-start;gap:10px;font-size:11px;color:#8c97a8}.methodology .note-footer{margin:0;padding:14px;font-size:11px;line-height:1.7;border-radius:8px;background:#edf1f6}
+.foot{max-width:1280px;margin:auto;padding:22px 28px 30px;color:#8e9aac;font-size:11px;border-top:1px solid #e6eaf0;background:transparent}
+.mobile-result-link:focus-visible,.result-more:focus-visible{outline:2px solid #6b86df;outline-offset:3px}
+@media(max-width:980px){.columns{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:17px}.panel{padding:20px}.mode-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.result-panel{padding:22px}.top,main{padding-left:20px;padding-right:20px}.hero-inner{padding-left:20px;padding-right:20px}.estimate-value{font-size:32px}}
+@media(max-width:760px){.columns{grid-template-columns:1fr;gap:18px}.result-panel{position:static}.top{padding:14px 18px}.logo{font-size:16px}.top-links{gap:17px;font-size:11px}.brand-symbol{width:29px;height:29px;font-size:21px}.hero-inner{padding:26px 18px 24px}.hero-lead{font-size:13px;line-height:1.6}main{padding:0 14px 35px}h1{font-size:31px}.panel{padding:21px;border-radius:13px}.section-heading{margin-bottom:18px}.section-number{min-width:29px;height:29px;font-size:10px}.panel-title{font-size:18px}.input{font-size:16px;height:46px}.field>span,.calc-label,.field{font-size:12px}.frow{grid-template-columns:1fr 1fr;gap:11px}.mode-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.mode-btn{min-height:52px;font-size:11px;padding:9px}.cargo-row{grid-template-columns:minmax(0,1.4fr) minmax(105px,.8fr)}.calc-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.goal-field select{font-size:16px}.disclosure>summary{font-size:12px;padding:14px 0}.preset-disclosure>summary,.road-disclosure>summary{padding:9px 0;font-size:11px}.mobile-result-link{display:flex;align-items:center;justify-content:space-between;text-decoration:none;margin-top:19px;padding:13px 15px;color:#fff;background:#355ad7;border-radius:8px;font-size:13px;font-weight:650}.estimate-value{font-size:38px}.result-panel>.panel-title{font-size:17px}.result-panel{padding:24px}.eta-value{font-size:25px}.transport-comparison{margin-top:20px}.transport-compare-header h2{font-size:19px}.mode-option-grid{grid-template-columns:1fr}.mode-option{padding:17px}.mode-chart{padding:14px}.mode-chart-label,.mode-chart-value{font-size:11px}.mode-chart-line{align-items:flex-start;gap:10px}.estimate-table{font-size:12px}.estimate-table td:nth-child(2){font-size:11px}.estimate-table th,.estimate-table td{padding:10px 3px}.delivery-details{padding:0 20px}.delivery-details>summary,.comparison>summary{font-size:14px}.foot{padding:20px 18px;gap:15px;flex-wrap:wrap}}
+@media(max-width:380px){.top-links{gap:10px}.top-links a:last-child{display:none}.logo{font-size:14px}.brand-symbol{width:26px;height:26px}.hero-inner{padding-top:23px}h1{font-size:28px}.panel{padding:17px}.scope-tabs button{font-size:12px}.cargo-row{grid-template-columns:minmax(0,1.2fr) minmax(95px,.8fr)}.estimate-value{font-size:33px}.mode-btn{gap:6px;font-size:10px}.mode-btn svg{width:17px;min-width:17px}.goal-field .input{font-size:14px}.eta-kind{font-size:8px}.estimate-table{font-size:10px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media(max-width:760px){body{padding-bottom:72px}.mobile-result-link{position:fixed;left:14px;right:14px;bottom:12px;z-index:50;margin:0;box-shadow:0 8px 30px #243d6c26}.result-visible .mobile-result-link{display:none}}
+@media(max-width:760px){.route-inputs .frow{grid-template-columns:1fr;gap:13px}.mode-btn span{overflow-wrap:normal}}
+@media(max-width:380px){.top-links{display:none}.top{padding-top:13px;padding-bottom:13px}.logo{font-size:15px}.hero-lead{font-size:12px}}
+.copy-result{display:block;width:100%;padding:12px 14px;margin:0 0 14px;background:#edf2ff;color:#355ad7;border:1px solid #d7e1fa;border-radius:8px;font-size:12px;font-weight:650}.copy-result:hover{background:#e4ecff}
+#eta-calculation-details dl{margin:16px 0;font-size:11px;color:#6c7b91}#eta-calculation-details dl>div{display:flex;justify-content:space-between;gap:15px;padding:6px 0;border-bottom:1px solid #e7ecf4}#eta-calculation-details dd{margin:0;text-align:right;white-space:nowrap}#eta-calculation-details .eta-manual-note{font-size:10px;line-height:1.6;color:#8591a3}
