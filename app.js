@@ -672,6 +672,14 @@
         $('eta-road-options').hidden=!road;
         const root=$('eta-result');root.replaceChildren();
         if(!road){
+            const eta=etaForScenario(state.mode,calcNumber('distance'));
+            if(Number.isFinite(eta.days)){
+                const value=document.createElement('div');value.className='eta-value';
+                value.textContent=daysLabel({...eta,mode:state.mode});
+                const note=document.createElement('p');note.className='eta-note';
+                note.textContent='Срок введён пользователем по предложению перевозчика; автоматически не проверен.';
+                root.append(value,note);return;
+            }
             const note=document.createElement('p');note.className='eta-note';
             note.textContent=!scopeDomestic() && state.mode==='road'
                 ? 'Международный автрейс: время OSRM — только движение по дорогам. Пограничные процедуры и режим труда экипажа зависят от маршрута и страны; модель внутрироссийского рейса здесь не применяем. Укажите срок из предложения перевозчика в блоке сравнения ниже.'
@@ -707,6 +715,13 @@
     }
     const goalLabel = {buyer:'Перевозку организует покупатель',seller:'Перевозку организует продавец',insured:'Продавец оплачивает перевозку и страхование',door:'Доставка до места назначения'};
     const scopeGoalLabel = goal => scopeDomestic() ? DOMESTIC_GOALS[goal].title : goalLabel[goal];
+    function comparisonContext(){
+        const route=($('origin').value.trim()||'Пункт отправления')+' → '+($('destination').value.trim()||'Пункт назначения');
+        const condition=scopeDomestic()
+            ? scopeGoalLabel($('delivery-goal').value)
+            : 'расчёт по '+state.term;
+        return route+' · '+condition;
+    }
     function recForMode(mode) {
         const goal=$('delivery-goal').value;
         const isMarine=mode==='sea';
@@ -789,7 +804,7 @@
         root.replaceChildren();
         const scenarioRoute=currentRoute();
         const rows=transportScenarios();
-        $('transport-context').textContent=($('origin').value.trim()||'Пункт отправления')+' → '+($('destination').value.trim()||'Пункт назначения')+' · '+(scopeGoalLabel($('delivery-goal').value)||'Сравнение схем');
+        $('transport-context').textContent=comparisonContext();
         if (!rows.length){
             const empty=document.createElement('p');empty.className='mode-compare-empty';
             empty.textContent='Для сравнения нужны положительные вес и стоимость груза, а также расстояние и тариф. Проверьте параметры расчёта.';
@@ -917,10 +932,17 @@
                 const input=document.createElement('input');input.type='number';input.min='0.25';input.max='180';input.step='0.25';input.inputMode='decimal';input.placeholder='Не указан';
                 const stored=carrierTimes.get(etaKey(item.mode,item.distance));if(stored!==undefined)input.value=String(stored);
                 const note=document.createElement('small');note.textContent='Срок не проверяется автоматически. Привязан к маршруту, весу, типу груза и расстоянию.';
-                input.addEventListener('change',()=>{
+                const saveCarrierTime=()=>{
                     const days=Number(input.value.replace(',','.'));
                     if(input.value.trim()!=='' && Number.isFinite(days)&&days>=.25&&days<=180)carrierTimes.set(etaKey(item.mode,item.distance),days);
                     else carrierTimes.delete(etaKey(item.mode,item.distance));
+                    renderEtaPanel();
+                };
+                // Keep the active input in place while typing; commit the card
+                // and comparison chart after the user leaves the field.
+                input.addEventListener('input',saveCarrierTime);
+                input.addEventListener('change',()=>{
+                    saveCarrierTime();
                     // Avoid rebuilding a parent DOM subtree while its focused input
                     // dispatches change/blur events (re-entrant replaceChildren).
                     setTimeout(()=>{renderTransportComparison();renderEtaPanel();},0);
@@ -1261,4 +1283,5 @@
     refreshFx();
     reloadMarketCatalog();
 })();
+
 
