@@ -267,6 +267,7 @@
         $('customs-row').hidden=scopeDomestic();
         $('customs-hint').hidden=scopeDomestic();
         $('incoterms-select').hidden=scopeDomestic();
+        $('result-term-field').hidden=scopeDomestic();
         $('incoterms-detail').hidden=scopeDomestic();
         $('comparison').hidden=scopeDomestic();
         $('domestic-info').hidden=!scopeDomestic();
@@ -1366,6 +1367,17 @@
     } }
     function uiButtons() { document.querySelectorAll('[data-mode]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.mode === state.mode))); }
     function renderTerms() {
+        const select=$('result-term');
+        select.replaceChildren();
+        [...ANY,...SEA].forEach(code=>{
+            const option=document.createElement('option');
+            option.value=code;
+            option.textContent=code+' — '+TERMS[code].name;
+            option.disabled=!compatible(code);
+            select.append(option);
+        });
+        select.value=state.term;
+
         for (const [id, terms] of [['any-terms', ANY], ['sea-terms', SEA]]) {
             const root = $(id);
             root.replaceChildren();
@@ -1373,6 +1385,7 @@
                 const x = document.createElement('button');
                 x.type = 'button';
                 x.className = 'term-btn';
+                x.dataset.term=code;
                 x.disabled = !compatible(code);
                 x.setAttribute('aria-pressed', String(code === state.term));
                 x.setAttribute('aria-label', code + ' — ' + TERMS[code].name + (x.disabled ? ' (недоступно)' : ''));
@@ -1381,7 +1394,7 @@
                 const s = document.createElement('small');
                 s.textContent = code === 'FAS' ? 'вдоль борта' : code === 'FOB' ? 'на борту' : code === 'CFR' ? 'фрахт' : code === 'CIF' ? '+ страховка' : code === 'CIP' ? 'перевозка + полис' : code === 'DDP' ? '+ импорт' : code === 'DPU' ? '+ разгрузка' : code === 'DAP' ? 'до места' : code === 'CPT' ? 'перевозка' : code === 'FCA' ? 'перевозчик' : 'самовывоз';
                 x.append(b, s);
-                x.addEventListener('click', () => { state.term = code; manuallyChangedTerm = true; renderAll(); });
+                x.addEventListener('click', () => { state.term = code; manuallyChangedTerm = true; renderAll(); document.querySelector('[data-term=+code+]')?.focus({preventScroll:true}); });
                 root.append(x);
             });
         }
@@ -1490,6 +1503,12 @@
         if(Number.isFinite(raw)&&raw>=10&&raw<=1000){usdRub=raw;fxKind='manual';}
         else {usdRub=null;fxKind='none';}
         updateFxUi();renderEstimate();
+    });
+    $('result-term').addEventListener('change',event=>{
+        const code=event.target.value;
+        if(![...ANY,...SEA].includes(code)||!compatible(code))return;
+        state.term=code;manuallyChangedTerm=true;renderAll();
+        $('calculation-status').textContent='Выбран '+code+'. Расчёт обновлён.';
     });
     setupInterface();
     renderHandover();

@@ -1518,3 +1518,28 @@ button,a,summary{touch-action:manipulation}
 @media(prefers-reduced-motion:reduce){
  html{scroll-behavior:auto}*,*::before,*::after{transition:none!important;animation:none!important}
 }
+
+/* v17.1: aligned fields and visible Incoterms selection */
+.calc-grid .field{justify-content:flex-start}
+.calc-grid .input{margin-top:0;flex-shrink:0}
+.calc-grid .calc-label{min-height:38px;align-items:flex-start}
+.calc-grid .field-hint{margin-top:0}
+.result-term-field{display:flex;flex-direction:column;gap:8px;margin:0 0 22px}
+.result-term-field .input{width:100%;font-weight:550}
+.delivery-details,.comparison{padding:0 20px}
+.delivery-details>summary,.comparison>summary{padding:18px 0;font-size:16px;line-height:1.4;min-height:60px}
+.delivery-details>.disclosure-body,.comparison>.compare-grid{padding-bottom:20px}
+.single-scenario{border:0;background:transparent;padding:0 20px;margin-top:20px}
+.single-scenario-note{margin-bottom:4px}
+@media(max-width:600px){
+ .calc-grid .calc-label{min-height:38px;font-size:13px}
+ .form-section-title{margin-top:20px;padding-top:20px}
+ .result-cargo{margin-bottom:20px}
+ .result-owners{margin-bottom:16px}
+ .delivery-details,.comparison{margin-top:18px}
+ .delivery-details>summary,.comparison>summary{font-size:15px;padding:16px 0}
+}
+@media(max-width:360px){
+ .calc-grid{grid-template-columns:1fr}
+ .calc-grid .calc-label{min-height:0}
+}
