@@ -142,6 +142,7 @@
         $('tariff-label').textContent='Ставка, '+tariffUnits();
         $('cargo-value-label').textContent='Стоимость груза, '+(scopeDomestic()?'₽':'USD');
         populateMarketOptions();
+        if($('rate-source-short'))$('rate-source-short').textContent=shortRateSource();
         const info=$('rate-source');
         const link=$('public-rate-link');
         const q=selectedMarketQuote();
@@ -458,6 +459,7 @@
         button.disabled = true;
         button.textContent = 'Строим маршрут…';
         status.textContent = 'Запрашиваем расстояние и время по автодорогам…';
+        setDistanceStatus('Уточняем маршрут…');
         const abort = new AbortController();
         roadRequestController = abort;
         const timeout = setTimeout(() => abort.abort(), 10000);
@@ -486,6 +488,7 @@
         } catch (error) {
             if (id !== roadRequestId) return;
             status.textContent = 'OSRM не ответил. Прежний километраж оставлен без изменений (если он задан). Можно ввести его вручную или повторить запрос.';
+            setDistanceStatus('Маршрут не уточнён · проверьте километраж');
             console.warn('Демонстрационный OSRM недоступен:', error);
         } finally {
             clearTimeout(timeout);
@@ -538,6 +541,7 @@
         return Object.entries(ROUTES).find(([,route]) => normalizedPlace(route.from)===start && normalizedPlace(route.to)===finish);
     }
     function updateDistanceHint(){
+        updateDistanceStatus();
         const known=currentRoute();
         const hint=$('distance-hint');
         if(roadDistance && roadDistance.key===roadKey()){
@@ -709,7 +713,7 @@
         const root=$('eta-result');root.replaceChildren();
         if(!hasValidInput()){
             const note=document.createElement('p');note.className='eta-note';
-            note.textContent='Для расчёта срока уточните параметры: '+inputError();
+            note.textContent='Срок появится после заполнения параметров.';
             root.append(note);return;
         }
         if(!road){
@@ -718,11 +722,11 @@
                 const value=document.createElement('div');value.className='eta-value';
                 value.textContent=daysLabel({...eta,mode:state.mode});
                 const note=document.createElement('p');note.className='eta-note';
-                note.textContent='Срок введён пользователем по предложению перевозчика; автоматически не проверен.';
+                note.textContent='По введённым данным · без автоматической проверки.';
                 root.append(value,note);return;
             }
             const note=document.createElement('p');note.className='eta-note';
-            note.textContent='Расписания перевозчика нет. Добавьте срок из его предложения в поле ниже.';
+            note.textContent='Уточните срок у перевозчика и укажите ниже.';
             root.append(note);return;
         }
         const distance=calcNumber('distance');
@@ -839,166 +843,187 @@
         })[0];
         return {cheapest,fastest,balanced};
     }
-    function renderTransportComparison(){
-        const root=$('transport-comparison-result');
-        if(!root)return;
-        root.replaceChildren();
-        const scenarioRoute=currentRoute();
-        const rows=transportScenarios();
-        $('transport-context').textContent=comparisonContext();
-        if (!rows.length){
-            const empty=document.createElement('p');empty.className='mode-compare-empty';
-            empty.textContent=inputError() || 'Для сравнения проверьте параметры расчёта: вес, расстояние, ставку и стоимость груза.';
-            root.append(empty);return;
-        }
-        const summary=document.createElement('p');summary.className='mode-compare-disclaimer';
-        summary.textContent=scenarioRoute ? (scopeDomestic()?'Расчётные сценарии по выбранному маршруту. Источник цены и срока указан в подробностях каждого варианта.':'Стоимость по ВЭД — учебная модель. Сроки указываются по предложениям перевозчиков.') : 'Для своего маршрута показан только выбранный вид транспорта. Для сравнения нескольких видов выберите маршрут из примеров.';
-        // Extended explanation is available below the comparison.
-        if(rows.length>1){
-            const winners=transportWinners(rows);
-            const panels=document.createElement('div');panels.className='mode-winners';
-            [
-                ...(winners.cheapest?[['Минимальная сумма среди сопоставимых ставок',winners.cheapest]]:[]),
-                ...(winners.fastest?[['Меньший введённый / расчётный срок',winners.fastest]]:[]),
-                ...(winners.balanced?[['Баланс учебных оценок (50/50)',winners.balanced]]:[])
-            ].forEach(([label,item])=>{
-                const card=document.createElement('div');card.className='mode-winner';
-                const caption=document.createElement('span');caption.className='mode-winner-label';caption.textContent=label;
-                const name=document.createElement('strong');name.textContent=item.name;
-                const metrics=document.createElement('div');metrics.className='mode-winner-metrics';
-                [['Стоимость',money(item.total)],['Срок',daysLabel(item)]].forEach(([metric,value])=>{
-                    const line=document.createElement('div');line.className='mode-winner-metric';
-                    const labelNode=document.createElement('span');labelNode.textContent=metric;
-                    const valueNode=document.createElement('b');valueNode.textContent=value;
-                    line.append(labelNode,valueNode);metrics.append(line);
-                });
-                const converted=fxSub(item.total);
-                if(converted){
-                    const conversion=document.createElement('small');conversion.className='mode-winner-converted';
-                    conversion.textContent='Справочно: '+converted;metrics.append(conversion);
-                }
-                card.append(caption,name,metrics);panels.append(card);
-            });
-            if(panels.childElementCount)root.append(panels);
-            if(!winners.cheapest){
-                const notice=document.createElement('p');notice.className='mode-compare-notice compare-caution';
-                notice.textContent='Авто — опубликованная или ваша ставка. Остальные цены — учебные: выбирать самый дешёвый способ по ним нельзя.';
-                root.append(notice);
-            }
-            if(!winners.fastest){
-                const notice=document.createElement('p');notice.className='mode-compare-notice';
-                notice.textContent='Добавьте сроки перевозчиков, чтобы сравнить скорость доставки.';
-                root.append(notice);
-            }
-        }
-        if(rows.length===1){
-            const note=document.createElement('p');note.className='mode-compare-notice';
-            note.textContent='Для этого маршрута доступен один расчётный вариант.';
-            root.append(note);
-        }
-        const plot=document.createElement('div');plot.className='mode-chart';
-        const head=document.createElement('div');head.className='mode-chart-head';
-        const headTitle=document.createElement('h3');headTitle.textContent='Стоимость и сроки';
-        const switches=document.createElement('div');switches.className='mode-chart-tabs';switches.setAttribute('role','group');switches.setAttribute('aria-label','Что показать на графике');
-        [['cost','Стоимость'],['time','Срок']].forEach(([value,label])=>{
-            const button=document.createElement('button');button.type='button';button.textContent=label;
-            button.setAttribute('aria-pressed',String(value===transportChartMetric));
-            button.addEventListener('click',()=>{transportChartMetric=value;renderTransportComparison();});
-            switches.append(button);
+    function renderHighlights(chart,rows){
+        const winners=transportWinners(rows);
+        const highlights=document.createElement('div');highlights.className='mode-winners';
+        [
+            ...(winners.cheapest?[['Минимум среди сопоставимых ставок',winners.cheapest]]:[]),
+            ...(winners.fastest?[['Меньший введённый / расчётный срок',winners.fastest]]:[]),
+            ...(winners.balanced?[['Баланс учебных оценок (50/50)',winners.balanced]]:[])
+        ].forEach(([caption,item])=>{
+            const p=document.createElement('p');p.className='mode-winner';
+            p.textContent=caption+': '+item.name+' · '+money(item.total)+' · '+daysLabel(item);highlights.append(p);
         });
-        head.append(headTitle,switches);plot.append(head);
-        const plotRows=transportChartMetric==='cost'?rows:rows.filter(item=>Number.isFinite(item.days));
-        if(rows.length<2){
-            plot.hidden=true;
-        }else if(!plotRows.length){
-            const empty=document.createElement('p');empty.className='mode-compare-notice';empty.textContent='Пока нет данных о сроках. Выберите автомобильную перевозку либо введите сроки из предложений перевозчиков.';plot.append(empty);
-        } else {
-            const values=[...plotRows].map(r=>transportChartMetric==='cost'?r.total:r.days).sort((a,b)=>a-b);
-            const outlier=transportChartMetric==='cost' && values.length>=3 && values[values.length-1]>5*values[values.length-2];
-            const maximum=Math.max(1,outlier?values[values.length-2]:values[values.length-1]);
-            if(outlier){
-                const scaleNote=document.createElement('p');scaleNote.className='mode-compare-notice';
-                scaleNote.textContent='Самая высокая оценка показана вне общего масштаба.';
-                plot.append(scaleNote);
-            }
-            [...plotRows].sort((a,b)=>transportChartMetric==='cost'?a.total-b.total:a.days-b.days).forEach(item=>{
-                const row=document.createElement('div');row.className='mode-chart-row';
-                const line=document.createElement('div');line.className='mode-chart-line';
-                const n=document.createElement('span');n.className='mode-chart-label';n.textContent=item.name;
-                const v=document.createElement('strong');v.className='mode-chart-value';
-                const outside=outlier && item.total>maximum;
-                v.textContent=(transportChartMetric==='cost'?money(item.total):daysLabel(item))+(outside?' · вне масштаба':'');
-                line.append(n,v);
-                const track=document.createElement('div');track.className='mode-chart-track';
-                const fill=document.createElement('div');fill.className='mode-chart-fill';
-                fill.style.width=Math.min(100,Math.max(2,100*(transportChartMetric==='cost'?item.total:item.days)/maximum))+'%';
-                if(outside)fill.classList.add('mode-chart-outlier');
-                if(item.mode===state.mode)fill.classList.add('selected');
-                track.append(fill);row.append(line,track);plot.append(row);
+        chart.querySelector('.mode-winners')?.remove();chart.append(highlights);
+    }
+    function renderScenarioChart(plot,rows){
+        // The switches remain mounted, including the keyboard's current focus.
+        let head=plot.querySelector('.mode-chart-head');
+        if(!head){
+            head=document.createElement('div');head.className='mode-chart-head';
+            const title=document.createElement('h3');title.textContent='График вариантов';
+            const switches=document.createElement('div');switches.className='mode-chart-tabs';
+            switches.setAttribute('role','group');switches.setAttribute('aria-label','Что показать на графике');
+            [['cost','Стоимость'],['time','Срок']].forEach(([metric,label])=>{
+                const button=document.createElement('button');button.type='button';button.textContent=label;
+                button.dataset.metric=metric;
+                button.addEventListener('click',()=>{transportChartMetric=metric;renderScenarioChart(plot,transportScenarios());});
+                switches.append(button);
             });
+            head.append(title,switches);plot.append(head);
+            const body=document.createElement('div');body.className='mode-chart-body';plot.append(body);
         }
-        root.append(plot);
-        const cards=document.createElement('div');cards.className='mode-option-grid';
+        head.querySelectorAll('button').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.metric===transportChartMetric)));
+        const body=plot.querySelector('.mode-chart-body');body.replaceChildren();
+        const plotRows=transportChartMetric==='cost'?rows:rows.filter(row=>Number.isFinite(row.days));
+        if(plotRows.length<2){
+            const note=document.createElement('p');note.className='mode-compare-notice';
+            note.textContent=plotRows.length?'Указан срок одного варианта. Добавьте ещё один для сравнения.':'Добавьте сроки перевозчиков в подробностях вариантов.';
+            body.append(note);
+        }
+        if(!plotRows.length)return;
+        const values=plotRows.map(row=>transportChartMetric==='cost'?row.total:row.days).sort((a,b)=>a-b);
+        const outlier=transportChartMetric==='cost'&&values.length>=3&&values.at(-1)>5*values.at(-2);
+        const maximum=Math.max(1,outlier?values.at(-2):values.at(-1));
+        if(outlier){
+            const note=document.createElement('p');note.className='mode-compare-notice';
+            note.textContent='Самая высокая оценка показана отдельно, вне общего масштаба.';body.append(note);
+        }
+        // Same order as the list: changing the metric does not rearrange the modes.
+        plotRows.forEach(item=>{
+            const row=document.createElement('div');row.className='mode-chart-row';
+            const line=document.createElement('div');line.className='mode-chart-line';
+            const label=document.createElement('span');label.className='mode-chart-label';label.textContent=item.name;
+            const value=document.createElement('strong');value.className='mode-chart-value';
+            const outside=outlier&&item.total>maximum;
+            value.textContent=(transportChartMetric==='cost'?money(item.total):daysLabel(item))+(outside?' · вне масштаба':'');
+            line.append(label,value);
+            const track=document.createElement('div');track.className='mode-chart-track';track.setAttribute('aria-hidden','true');
+            const fill=document.createElement('div');fill.className='mode-chart-fill';
+            fill.style.width=Math.min(100,Math.max(2,100*(transportChartMetric==='cost'?item.total:item.days)/maximum))+'%';
+            if(outside)fill.classList.add('mode-chart-outlier');
+            if(item.mode===state.mode)fill.classList.add('selected');
+            track.append(fill);row.append(line,track);body.append(row);
+        });
+    }
+    function renderTransportComparison(){
+        const root=$('transport-comparison-result');if(!root)return;
+        const expanded=new Set([...root.querySelectorAll('details[open]')].map(el=>el.id));
+        const focus=document.activeElement;
+        const focusId=root.contains(focus)?focus.id:null;
+        const chartMetric=root.contains(focus)?focus.dataset?.metric:null;
+        root.replaceChildren();
+        const scenarioRoute=currentRoute(),rows=transportScenarios();
+        $('transport-context').textContent=comparisonContext();
+        const multiple=rows.length>1;
+        const action=document.querySelector('.result-more');
+        action.hidden=!rows.length;
+        action.href=multiple?'#transport-comparison':'#cost-breakdown';
+        action.replaceChildren(document.createTextNode(multiple?'Сравнить варианты':'Посмотреть расходы'));
+        const arrow=document.createElement('span');arrow.setAttribute('aria-hidden','true');arrow.textContent='↗';action.append(arrow);
+        document.querySelectorAll('[data-variants-nav]').forEach(link=>{link.hidden=!multiple;});
+        $('transport-comparison').classList.toggle('single-scenario',!multiple);
+        if(!rows.length){
+            const empty=document.createElement('p');empty.className='mode-compare-empty';
+            empty.textContent='Варианты появятся после заполнения параметров.';root.append(empty);return;
+        }
+        if(!multiple){
+            const note=document.createElement('p');note.className='single-scenario-note';
+            note.textContent='Для этого маршрута подготовлен один вариант. Его расходы и условия — в расчёте выше.';
+            const link=document.createElement('a');link.href='#configurator';link.className='text-action';link.textContent='Изменить маршрут';
+            root.append(note,link);return;
+        }
+        const notice=document.createElement('p');notice.className='mode-compare-notice compare-caution';
+        notice.textContent=scopeDomestic()?'Авто — опубликованная или ваша ставка. Другие цены — учебные, поэтому выбирать самый дешёвый способ по ним нельзя.':'Цены — учебные. Сроки заполняются по предложениям перевозчиков.';
+        root.append(notice);
+        const cards=document.createElement('div');cards.className='mode-option-list';
         rows.forEach(item=>{
-            const card=document.createElement('article');card.className='mode-option';
-            if(item.mode===state.mode)card.classList.add('mode-option-active');
-            const top=document.createElement('div');top.className='mode-option-head';
+            const selected=item.mode===state.mode;
+            const card=document.createElement('details');card.className='mode-option'+(selected?' mode-option-active':'');
+            card.id='option-'+item.mode;card.open=expanded.has(card.id);
+            const summary=document.createElement('summary');summary.className='mode-option-summary';summary.id='option-toggle-'+item.mode;
+            const identity=document.createElement('span');identity.className='mode-option-identity';
             const title=document.createElement('strong');title.textContent=item.name;
-            const flag=document.createElement('span');flag.className='mode-option-tag';flag.textContent=item.mode===state.mode?'Выбранный':item.rateConfidence==='published'?'Опубликованный ориентир':'Учебная альтернатива';
-            top.append(title,flag);
-            const amounts=document.createElement('div');amounts.className='mode-option-amounts';
+            const type=document.createElement('span');type.className='mode-option-tag';
+            type.textContent=(selected?'Выбрано · ':'')+(item.rateConfidence==='published'?'Опубликованный ориентир':item.rateConfidence==='user'?'Ваша ставка':'Учебный расчёт');
+            identity.append(title,type);
+            const amounts=document.createElement('span');amounts.className='mode-option-amounts';
             const total=document.createElement('b');total.textContent=money(item.total);
-            const converted=fxSub(item.total);if(converted)total.title='Справочно: '+converted;
-            const eta=document.createElement('span');eta.textContent=daysLabel(item);
-            amounts.append(total,eta);
-            const source=document.createElement('p');source.className='scenario-rate-source';source.textContent=item.rateSource;
-            const details=document.createElement('dl');details.className='mode-option-facts';
-            [['Расстояние',distanceNum(item.distance)+' км'],['Основная перевозка',money(item.freight)],...(scopeDomestic()? [['Условия доставки',scopeGoalLabel($('delivery-goal').value)]] : [['Базис в расчёте',item.term],['По заданной цели',item.recommendedTerm]]),['Источник расстояния',item.distSource],['Источник ставки',item.rateSource],['Срок доставки',daysLabel(item)+(item.mode==='road' && scopeDomestic()?' · модель одного водителя':item.days===null?'': ' · ввод пользователя')],['Источник срока',item.sourceTime],...(fxSub(item.total)?[['В другой валюте',fxSub(item.total)]]:[])].forEach(([key,value],i)=>{
-                const wrap=document.createElement('div'),k=document.createElement('dt'),v=document.createElement('dd');
-                k.textContent=key;v.textContent=value;wrap.append(k,v);details.append(wrap);
+            const eta=document.createElement('span');eta.textContent=daysLabel(item);amounts.append(total,eta);
+            summary.append(identity,amounts);card.append(summary);
+            const body=document.createElement('div');body.className='mode-option-body';
+            const facts=document.createElement('dl');facts.className='mode-option-facts';
+            [
+                ['Расстояние',distanceNum(item.distance)+' км'],
+                ['Основная перевозка',money(item.freight)],
+                ...(scopeDomestic()?[['Условия доставки',scopeGoalLabel($('delivery-goal').value)]]:[['Базис в расчёте',item.term],['По заданной цели',item.recommendedTerm]]),
+                ['Источник расстояния',item.distSource],['Источник ставки',item.rateSource],
+                ['Источник срока',item.sourceTime],
+                ...(fxSub(item.total)?[['Справочно в другой валюте',fxSub(item.total)]]:[])
+            ].forEach(([name,value])=>{
+                const row=document.createElement('div'),label=document.createElement('dt'),text=document.createElement('dd');
+                label.textContent=name;text.textContent=value;row.append(label,text);facts.append(row);
             });
-            const button=document.createElement('button');button.type='button';button.className='mode-select-btn';
-            button.textContent=item.mode===state.mode?'Выбран в калькуляторе':'Рассчитать этот вариант';
-            button.disabled=item.mode===state.mode;
-            button.addEventListener('click',()=>{
-                // Reuse original changeTransport (same state transitions & guards).
-                manualRate=false;
-                changeTransport(item.mode);
-                $('estimate-title').scrollIntoView({behavior:'smooth',block:'start'});
-            });
-            card.append(top,amounts);
-            const expanded=document.createElement('details');expanded.className='scenario-details';
-            const expandedLabel=document.createElement('summary');expandedLabel.textContent='Состав расчёта и источники';
-            expanded.append(expandedLabel,source,details);card.append(expanded);
-            if(item.mode!=='road' || !scopeDomestic()){
-                const entry=document.createElement('label');entry.className='mode-eta-input';
-                const label=document.createElement('span');label.textContent='Срок по предложению перевозчика, суток';
-                const input=document.createElement('input');input.type='number';input.min='0.25';input.max='180';input.step='0.25';input.inputMode='decimal';input.placeholder='Не указан';
-                const stored=carrierTimes.get(etaKey(item.mode,item.distance));if(stored!==undefined)input.value=String(stored);
-                const note=document.createElement('small');note.textContent='Срок не проверяется автоматически. Привязан к маршруту, весу, типу груза и расстоянию.';
-                const saveCarrierTime=()=>{
-                    const days=Number(input.value.replace(',','.'));
-                    if(input.value.trim()!=='' && Number.isFinite(days)&&days>=.25&&days<=180)carrierTimes.set(etaKey(item.mode,item.distance),days);
-                    else carrierTimes.delete(etaKey(item.mode,item.distance));
-                    renderEtaPanel();
-                };
-                // Keep the active input in place while typing; commit the card
-                // and comparison chart after the user leaves the field.
-                input.addEventListener('input',saveCarrierTime);
-                input.addEventListener('change',()=>{
-                    saveCarrierTime();
-                    // Avoid rebuilding a parent DOM subtree while its focused input
-                    // dispatches change/blur events (re-entrant replaceChildren).
-                    setTimeout(()=>{renderTransportComparison();renderEtaPanel();},0);
-                });
-                entry.append(label,input,note);card.append(entry);
+            body.append(facts);
+            if(item.mode!=='road'||!scopeDomestic()){
+                if(selected){
+                    const link=document.createElement('a');link.href='#carrier-eta-days';link.className='text-action';
+                    link.textContent='Изменить срок в расчёте';body.append(link);
+                }else{
+                    const entry=document.createElement('label');entry.className='mode-eta-input';
+                    const label=document.createElement('span');label.textContent='Срок перевозчика, суток';
+                    const input=document.createElement('input');input.type='number';input.min='0.25';input.max='180';input.step='0.25';input.inputMode='decimal';input.placeholder='Не указан';input.id='scenario-time-'+item.mode;
+                    input.setAttribute('aria-label','Срок перевозчика: '+item.name+', суток');
+                    const help=document.createElement('small');help.id=input.id+'-help';help.textContent='По вашему предложению, без автоматической проверки.';
+                    const error=document.createElement('span');error.id=input.id+'-error';error.className='field-error';error.hidden=true;
+                    input.setAttribute('aria-describedby',help.id+' '+error.id);
+                    const stored=carrierTimes.get(etaKey(item.mode,item.distance));if(stored!==undefined)input.value=String(stored);
+                    const save=()=>{
+                        const raw=input.value.trim(),days=Number(raw.replace(',','.'));
+                        const valid=raw!==''&&Number.isFinite(days)&&days>=.25&&days<=180;
+                        if(valid)carrierTimes.set(etaKey(item.mode,item.distance),days);else carrierTimes.delete(etaKey(item.mode,item.distance));
+                        const invalid=raw!==''&&!valid;input.setAttribute('aria-invalid',String(invalid));
+                        error.hidden=!invalid;error.textContent=invalid?'Укажите от 0,25 до 180 суток.':'';
+                        eta.textContent=valid?daysLabel({mode:item.mode,days}):'Срок не указан';
+                        const sourceRow=[...facts.children].find(row=>row.firstChild.textContent==='Источник срока');
+                        if(sourceRow)sourceRow.lastChild.textContent=valid?'Срок введён пользователем, не проверен':'Требуется срок из предложения перевозчика';
+                        renderEtaPanel();
+                        const livePlot=root.querySelector('.mode-chart');
+                        if(livePlot){const liveRows=transportScenarios();renderScenarioChart(livePlot,liveRows);renderHighlights(livePlot.parentElement,liveRows);}
+                    };
+                    input.addEventListener('input',save);
+                    input.addEventListener('change',()=>{
+                        save();
+                        // Do not replace the active input or the next button during blur/click.
+                        const updated=transportScenarios(),plot=root.querySelector('.mode-chart');
+                        if(plot){renderScenarioChart(plot,updated);renderHighlights(plot.parentElement,updated);}
+                    });
+                    entry.append(label,input,help,error);body.append(entry);
+                }
             }
-            card.append(button);cards.append(card);
+            if(!selected){
+                const button=document.createElement('button');button.type='button';button.className='mode-select-btn';button.textContent='Рассчитать этот вариант';
+                button.setAttribute('aria-label','Рассчитать: '+item.name);
+                button.addEventListener('click',()=>{manualRate=false;changeTransport(item.mode);visitResult();});
+                body.append(button);
+            }
+            card.append(body);cards.append(card);
         });
         root.append(cards);
-        const foot=document.createElement('p');foot.className='mode-compare-disclaimer';
-        foot.textContent='Время OSRM рассчитано для автомобильных дорог, не специально для грузовиков. Сроки других видов транспорта требуют данных перевозчика. Модельные цены не являются предложениями; инфраструктура и доступность рейсов не проверяются.';
-        const methodology=document.createElement('details');methodology.className='disclosure comparison-methodology';const methodLabel=document.createElement('summary');methodLabel.textContent='Как сравниваются варианты';methodology.append(methodLabel,summary,foot);root.append(methodology);
+        const chart=document.createElement('details');chart.className='chart-disclosure';chart.id='comparison-chart';chart.open=expanded.has(chart.id);
+        const chartLabel=document.createElement('summary');chartLabel.textContent='График стоимости и сроков';
+        const plot=document.createElement('div');plot.className='mode-chart';chart.append(chartLabel,plot);root.append(chart);
+        renderScenarioChart(plot,rows);
+        renderHighlights(chart,rows);
+        const methodology=document.createElement('details');methodology.className='comparison-methodology';methodology.id='comparison-methodology';methodology.open=expanded.has(methodology.id);
+        const label=document.createElement('summary');label.textContent='Источники и ограничения';
+        const text=document.createElement('p');text.className='mode-compare-disclaimer';
+        text.textContent=(scenarioRoute?'Показаны расчётные сценарии по маршруту. ':'')+
+            'Модельные цены не являются предложениями перевозчиков. Доступность рейсов и инфраструктура не проверяются. Сроки из предложений привязаны к маршруту, массе, типу груза и расстоянию. Время OSRM относится к автомобильным дорогам, а не к специальному маршруту грузовика.';
+        methodology.append(label,text);root.append(methodology);
+        // Preserve open state and keyboard position across external recalculations.
+        if(focusId)document.getElementById(focusId)?.focus({preventScroll:true});
+        else if(chartMetric)root.querySelector('[data-metric="'+chartMetric+'"]')?.focus({preventScroll:true});
     }
 
     function renderDomesticTerms(){
@@ -1020,16 +1045,130 @@
           row('Страхование',goal==='insured'?A:N,goal==='insured'?'Отправитель':'По соглашению сторон')
         );
     }
+    // Presentation only: the calculation and scenario rules are unchanged.
+    const touchedFields=new Set();
+    const validationFields=['weight','distance','tariff','cargo-value','road-loading','road-tolls','road-waiting','road-other','eta-speed','eta-prep','eta-load','eta-unload','eta-buffer','carrier-eta-days','fx-manual'];
+    let validationRequested=false;
+    function shortRateSource(){
+        if(scopeDomestic() && state.mode==='road'){
+            if(manualRate || marketQuoteChoice==='manual')return 'Ваша ставка · без проверки';
+            const quote=selectedMarketQuote();
+            return quote ? quote.label.split(' · ')[0]+' · '+quote.date : 'Укажите ставку перевозчика';
+        }
+        return manualRate?'Ваша ставка · прочие расходы учебные':'Учебная ставка · можно изменить';
+    }
+    function setDistanceStatus(text){
+        const hint=$('distance-source-short');
+        if(hint && hint.textContent!==text)hint.textContent=text;
+    }
+    function updateDistanceStatus(){
+        setDistanceStatus(manualDistance && $('distance').value.trim()?'Введено вручную':
+            state.mode==='road' && roadDistance?.key===roadKey()?'По автодорогам · OSRM':
+            currentRoute()?.modes[state.mode]?'Расстояние из примера':'Введите расстояние');
+    }
+    function updateOverview(){
+        $('result-route').textContent=($('origin').value.trim()||'Откуда')+' → '+($('destination').value.trim()||'Куда');
+        const cargo=$('cargo').selectedOptions[0]?.textContent||'Груз';
+        const mass=calcNumber('weight');
+        $('result-cargo').textContent=MODES[state.mode]+' · '+cargo+
+            (Number.isFinite(mass)&&mass>0?' · '+mass.toLocaleString('ru-RU')+' т':'');
+    }
+    function fieldMessage(id){
+        const field=$(id);
+        if(!field)return '';
+        const road=scopeDomestic()&&state.mode==='road';
+        if(id.startsWith('road-')||id.startsWith('eta-')){
+            if(!road)return '';
+        }
+        if(id==='carrier-eta-days' && road)return '';
+        const raw=field.value.trim();
+        const optional=id.startsWith('road-')||id==='carrier-eta-days'||id==='fx-manual';
+        if(!raw && optional)return '';
+        if(!raw || !Number.isFinite(Number(raw)))return 'Введите число.';
+        const min=field.min===''?null:Number(field.min),max=field.max===''?null:Number(field.max);
+        if(min!==null && Number(raw)<min)return 'Минимум — '+min.toLocaleString('ru-RU')+'.';
+        if(max!==null && Number(raw)>max)return 'Максимум — '+max.toLocaleString('ru-RU')+'.';
+        return '';
+    }
+    function syncFieldErrors(){
+        validationFields.forEach(id=>{
+            const field=$(id),note=$(id+'-error');
+            if(!field||!note)return;
+            const message=fieldMessage(id);
+            // A temporarily empty field while typing is not announced as an error.
+            const show=!!message && (validationRequested||touchedFields.has(id)) &&
+                (field.value.trim()!==''||document.activeElement!==field||validationRequested);
+            field.setAttribute('aria-invalid',String(show));
+            note.hidden=!show;note.textContent=show?message:'';
+        });
+    }
+    function goToSection(target){
+        if(!target)return;
+        for(let parent=target.parentElement;parent;parent=parent.parentElement){
+            if(parent.tagName==='DETAILS')parent.open=true;
+        }
+        if(target.tagName==='DETAILS')target.open=true;
+        const focusTarget=target.tagName==='DETAILS'?target.querySelector('summary'):target;
+        if(focusTarget && !focusTarget.matches('input,select,button,a,summary,[tabindex]'))focusTarget.setAttribute('tabindex','-1');
+        focusTarget?.focus({preventScroll:true});
+        const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        target.scrollIntoView({behavior:reduced?'instant':'smooth',block:'start'});
+    }
+    function visitResult(){
+        if(!hasValidInput()){
+            validationRequested=true;syncFieldErrors();
+            const invalid=['weight','distance','tariff','cargo-value',...ROAD_EXPENSES.map(x=>x.id)].find(id=>fieldMessage(id));
+            goToSection(invalid?$(invalid):$('result-panel'));
+            $('calculation-status').textContent=inputError();
+            return;
+        }
+        goToSection($('result-panel'));
+    }
+    function setupInterface(){
+        validationFields.forEach(id=>{
+            const field=$(id);if(!field)return;
+            field.addEventListener('input',()=>{touchedFields.add(id);syncFieldErrors();});
+            field.addEventListener('blur',()=>{
+                touchedFields.add(id);syncFieldErrors();
+                $('calculation-status').textContent=fieldMessage(id)||(
+                    hasValidInput()?'Расчёт обновлён: '+money(estimateValues(state.term).total):inputError());
+            });
+        });
+        document.addEventListener('click',event=>{
+            const link=event.target.closest('a[href^="#"]');
+            if(!link)return;
+            const id=link.getAttribute('href').slice(1);
+            if(!id)return;
+            const target=$(id);if(!target)return;
+            event.preventDefault();
+            if(id==='result-panel')visitResult();else goToSection(target);
+        });
+        if('IntersectionObserver' in window){
+            const observer=new IntersectionObserver(entries=>{
+                const visible=entries.find(entry=>entry.isIntersecting);if(!visible)return;
+                document.querySelectorAll('.section-nav a').forEach(link=>{
+                    if(link.getAttribute('href')==='#'+visible.target.id)link.setAttribute('aria-current','location');
+                    else link.removeAttribute('aria-current');
+                });
+            },{rootMargin:'-10% 0px -70% 0px',threshold:0});
+            ['configurator','result-panel','transport-comparison'].forEach(id=>observer.observe($(id)));
+        }
+    }
+
     function renderEstimate(){
         updateTariffUi();
+        updateOverview();
+        syncFieldErrors();
         // Route and delivery responsibilities must also update while numbers are invalid.
         if(scopeDomestic())renderDomesticTerms();
         const root=$('estimate-result');
-        const costOpen=!!root.querySelector?.('.cost-breakdown')?.open;
-        const conditionsOpen=!!root.querySelector?.('.estimate-summary')?.open;
-        root.replaceChildren();
+        const detailsRoot=$('result-details');
+        const costOpen=!!detailsRoot.querySelector('.cost-breakdown')?.open;
+        const conditionsOpen=!!detailsRoot.querySelector('.estimate-summary')?.open;
+        root.replaceChildren();detailsRoot.replaceChildren();
         const route=currentRoute();
         const rec=scopeDomestic()?null:recTerm();
+        $('copy-result').disabled=!hasValidInput();
         if(!hasValidInput()){
             const error=document.createElement('div');error.className='estimate-empty';
             error.textContent=inputError();
@@ -1037,7 +1176,7 @@
         }
         const estimate=estimateValues(state.term);
         if(!estimate)return;
-        const top=document.createElement('details');top.className='estimate-summary';top.open=conditionsOpen;
+        const top=document.createElement('details');top.className='estimate-summary';top.id='result-conditions';top.open=conditionsOpen;
         const heading=document.createElement('summary');heading.textContent=scopeDomestic()?'Кто оплачивает доставку':'Условия '+state.term+(state.term!==rec.code?' · рекомендация '+rec.code:'');
         const recommendation=document.createElement('p');recommendation.className='estimate-recommend';
         recommendation.textContent=scopeDomestic()?DOMESTIC_GOALS[$('delivery-goal').value].title:
@@ -1057,7 +1196,7 @@
         const sum=document.createElement('div');sum.className='estimate-value';sum.textContent=money(estimate.total);
         const subFx=fxSub(estimate.total);
         if(subFx){const converted=document.createElement('div');converted.className='estimate-converted';converted.textContent='Справочно: '+subFx;root.append(converted);}
-        const sumLabel=document.createElement('p');sumLabel.className='estimate-sub';sumLabel.textContent=scopeDomestic()?(state.mode==='road'?'По выбранной ставке · без неуказанных услуг':'Учебный расчёт · без таможенных расходов'):'Учебная модель расходов';
+        const sumLabel=document.createElement('p');sumLabel.className='estimate-sub';sumLabel.textContent=scopeDomestic()&&state.mode==='road'?'Расходы на перевозку':'Всего расходов по модели';
         const range=document.createElement('p');range.className='estimate-sub';
         const marketChoices=marketQuotesForRoute();
         if(scopeDomestic() && state.mode==='road'){
@@ -1067,12 +1206,13 @@
             range.textContent='Диапазон опубликованных ориентиров по этому направлению: '+money(Math.min(...quotes)*distance*trucks)+' — '+money(Math.max(...quotes)*distance*trucks)+' за основную перевозку (без дополнительных услуг). Разные источники и условия; не прогнозный интервал.';
           } else range.textContent='Цена основана на выбранной ставке ₽/км. Она не гарантирует цену рейса; актуальный тариф подтвердит перевозчик.';
         } else range.textContent='Иллюстративный диапазон ±25%: '+money(estimate.total*.75)+' — '+money(estimate.total*1.25)+' (не статистическая оценка).';
-        root.append(sum);if(subFx){const x=root.querySelector('.estimate-converted');if(x)root.append(x);}root.append(sumLabel);
+        root.append(sumLabel,sum);if(subFx){const x=root.querySelector('.estimate-converted');if(x)root.append(x);}
+        const provenance=document.createElement('p');provenance.className='result-provenance';provenance.textContent=shortRateSource();root.append(provenance);
         const condition=document.createElement('p');condition.className='result-condition';
         condition.textContent=scopeDomestic()?DOMESTIC_GOALS[$('delivery-goal').value].title:'Расчёт по '+state.term+(state.term!==rec.code?' · по цели рекомендован '+rec.code:'');root.append(condition);
-        const breakdown=document.createElement('details');breakdown.className='cost-breakdown';breakdown.open=costOpen;
+        const breakdown=document.createElement('details');breakdown.className='cost-breakdown';breakdown.id='cost-breakdown';breakdown.open=costOpen;
         const breakdownLabel=document.createElement('summary');breakdownLabel.textContent='Расходы по статьям';
-        breakdown.append(breakdownLabel,range);root.append(breakdown,top);
+        breakdown.append(breakdownLabel,range);detailsRoot.append(breakdown,top);
         const table=document.createElement('table');table.className='estimate-table';
         const thead=document.createElement('thead');thead.innerHTML='<tr><th>Статья</th><th>За счёт кого</th><th>Сумма</th></tr>';
         const body=document.createElement('tbody');
@@ -1085,6 +1225,14 @@
         const totals=document.createElement('p');totals.className='estimate-totals';
         totals.textContent=scopeDomestic()?'По учебной схеме: отправитель — '+money(estimate.seller)+', получатель — '+money(estimate.buyer)+'.':'По учебной схеме: продавец — '+money(estimate.seller)+', покупатель — '+money(estimate.buyer)+'.';
         breakdown.append(totals);
+        if(!scopeDomestic()){
+            const owners=document.createElement('dl');owners.className='result-owners';
+            [['Продавец',estimate.seller],['Покупатель',estimate.buyer]].forEach(([name,amount])=>{
+                const line=document.createElement('div'),label=document.createElement('dt'),value=document.createElement('dd');
+                label.textContent=name;value.textContent=money(amount);line.append(label,value);owners.append(line);
+            });
+            root.append(owners);
+        }
         const detail=document.createElement('p');detail.className='estimate-sub';
         detail.textContent=scopeDomestic()&&state.mode==='road'
          ? 'Автоперевозка: расстояние × опубликованная/введённая ставка ₽/маш·км'+(calcNumber('weight')>20?' × '+truckCount(calcNumber('weight'))+' расчётных машин':'')+' (не менее '+money(DOMESTIC_RATES.road.minimum)+') = '+money(estimate.main)+'. Расходы сверх ставки учитываются только по введённым пользователем суммам, без автоматического начисления.'
@@ -1294,7 +1442,7 @@
     $('handover').addEventListener('change', () => { if (!manuallyChangedTerm) state.term=recTerm().code; renderAll(); });
 
     $('compare-term').addEventListener('change', e => { state.comparison = e.target.value; renderComparison(); });
-    $('compare-open').addEventListener('click', () => { $('comparison').open=true;$('comparison').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    $('compare-open').addEventListener('click', () => { $('comparison').open=true;goToSection($('comparison')); });
     $('copy-domestic').addEventListener('click', async () => {
         const estimate=estimateValues('');
         if(!estimate){toast('Заполните параметры расчёта');return;}
@@ -1326,18 +1474,13 @@
         }
     });
     $('fx-refresh').addEventListener('click',refreshFx);
-    if('IntersectionObserver' in window){
-        const observer=new IntersectionObserver(entries=>{
-            document.body.classList.toggle('result-visible',entries[0].isIntersecting);
-        },{threshold:0.1});
-        observer.observe($('result-panel'));
-    }
     $('carrier-eta-days').addEventListener('input',()=>{
         const input=$('carrier-eta-days'),days=Number(input.value.replace(',','.'));
         const key=etaKey(state.mode,calcNumber('distance'));
         if(input.value.trim()!=='' && Number.isFinite(days) && days>=.25 && days<=180)carrierTimes.set(key,days);
         else carrierTimes.delete(key);
         renderEtaPanel();
+        syncFieldErrors();
         // This field is outside the comparison subtree, so refresh cards immediately
         // without replacing the focused input or dismissing a mobile keyboard.
         renderTransportComparison();
@@ -1348,6 +1491,7 @@
         else {usdRub=null;fxKind='none';}
         updateFxUi();renderEstimate();
     });
+    setupInterface();
     renderHandover();
     setScope('domestic');
     refreshFx();
